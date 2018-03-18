@@ -5,7 +5,7 @@
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from bs4 import BeautifulSoup
+from lxml import etree
 import requests
 
 HEADER = {}
@@ -18,13 +18,26 @@ def fetch():
     pass
 
 
+def transform2utf8(text):
+    pass
+
+
 def scrape_core(url_rule):
     max_try_again_time = MAX_TRY_AGAIN_TIME
     while max_try_again_time:
         try:
             response = requests.get(url_rule.url, headers=HEADER, timeout=TIMEOUT)
             if response.status_code == 200:
-                pass
+                text = transform2utf8(response.text)  # 要注意编码
+                html = etree.HTML(text)  #
+                scrape_res = {}
+                for k, v in url_rule.rule.items():
+                    try:
+                        scrape_res[k] = html.xpath(v)  # 提取内容
+                    except Exception:  # 后面可以看一下需要捕捉什么异常
+                        pass
+                return UrlRule(url=url_rule.url, rule=scrape_res)
+
             else:  # 非超时的请求失败，后面可以再看怎么处理
                 max_try_again_time -= 1
                 continue
@@ -35,8 +48,6 @@ def scrape_core(url_rule):
 
 
 def scrape(url_rules):
-    # with requests.Session() as session:  # 无复用session的意义
-    #     session.headers.update(HEADER)
     res = []
     with ThreadPoolExecutor(max_workers=20) as executor:
         url_mapper = {executor.submit(scrape, url_rule): url_rule for url_rule in url_rules}
