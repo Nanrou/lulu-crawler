@@ -89,6 +89,8 @@ LOGGER = MyLogger('scrap-part')
 
 # TODO logger，常见异常的处理，DB，前端动态配置
 
+# TODO 第一个请求的逻辑都很相似，看怎么再抽象出来
+
 
 class Item:
     """ 分类页的任务单位 """
@@ -123,18 +125,6 @@ class Crawler:
             'HeadlessItem': self._scrap_headless_core,
             'AjaxItem': self._scrap_ajax_core,
         }
-
-        # self.static_items = []
-        # self.headless_items = []
-        # self.ajax_items = []
-        #
-        # for item in items:
-        #     if type(item).__name__.startswith('S'):
-        #         self.static_items.append(item)
-        #     elif type(item).__name__.startswith('H'):
-        #         self.headless_items.append(item)
-        #     else:
-        #         self.ajax_items.append(item)
 
     def crawl(self):
         return self._scrap()
@@ -274,8 +264,8 @@ class Crawler:
         except requests.Timeout:
             LOGGER.warning('超时 {}'.format(url_detail.url))
 
-    @staticmethod
-    def transform2utf8(resp):
+    @classmethod
+    def transform2utf8(cls, resp):
         if resp.encoding == 'utf-8':
             return resp.text
         else:
@@ -319,14 +309,6 @@ class Crawler:
                 max_try_again_time -= 1
         else:
             raise OutTryException  # request部分失败，抛出特定异常给上层处理
-
-
-def ajax_core(url_detail):
-    pass
-
-
-def scrape_ajax(url_detail):
-    pass
 
 
 if __name__ == '__main__':
