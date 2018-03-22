@@ -39,6 +39,8 @@ class CategoryTable(BaseModel):
     article_publish_time_rule = CharField(max_length=255, null=False)
     article_content_rule = CharField(max_length=255, null=False)
 
+    article_query_url = CharField(max_length=255, null=True)  # 构造查询文章的url
+
     company_name = ForeignKeyField(CompanyTable, on_delete=True, related_name='name', backref='category')
 
     is_deleted = BooleanField(default=False)
