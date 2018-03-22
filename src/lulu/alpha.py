@@ -277,18 +277,6 @@ def scrape_ajax(url_detail):
 
 
 if __name__ == '__main__':
-    rr = '''
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-Accept-Encoding: gzip, deflate
-Accept-Language: zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2
-Cache-Control: no-cache
-Connection: keep-alive
-Host: www.yiwuwater.com
-Pragma: no-cache
-Upgrade-Insecure-Requests: 1
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0) Gecko/20100101 Firefox/59.0
-'''
-
     # pp = {'http': '127.0.0.1:8877'}
     # rr = requests.get(
     #     'http://www.yiwuwater.com/api/wap/v1/contentapi/content/getall/true/22',
