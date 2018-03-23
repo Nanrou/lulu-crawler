@@ -34,6 +34,7 @@ class CategoryTable(BaseModel):
 
     # 内容的解析规则
     article_url_rule = CharField(max_length=255, null=True)
+    article_middle_url_rule = CharField(max_length=255, null=True)
     article_title_rule = CharField(max_length=255, null=False)
     article_author_rule = CharField(max_length=255, null=False)
     article_publish_time_rule = CharField(max_length=255, null=False)
