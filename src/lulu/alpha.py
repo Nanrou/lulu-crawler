@@ -14,8 +14,8 @@ demo
 
 针对分类页:
 condition 0: 普通的静态页面解析
-condition 1: 需要保持sessionID
-condition 2: 构造特定网址去拿到json数据
+condition 1: 构造特定网址去拿到json数据
+condition 2: 需要保持sessionID
 一般情况下，逻辑是：分类页 -> 文章页 -> 内容，但是后两种情况，有时候会出现：分类页 -> 内容
 
 ======================================
@@ -94,25 +94,25 @@ LOGGER = MyLogger('scrap-part')
 
 class Item:
     """ 分类页的任务单位 """
-    __slots__ = ['url', 'detail', 'direct', 'json']
+    __slots__ = ['url', 'detail', 'is_direct', 'is_json']
 
-    def __init__(self, url, detail, direct=False, json_=False):
+    def __init__(self, url, detail, is_direct=False, is_json=False):
         self.url = url
         self.detail = detail
-        self.direct = direct  # 分类是不是直接到内容
-        self.json = json_  # 内容是不是json格式
+        self.is_direct = is_direct  # 分类是不是直接到内容
+        self.is_json = is_json  # 内容是不是json格式
 
 
 class StaticItem(Item):
     """ condition 0，可以直接拿到内容 """
 
 
-class HeadlessItem(Item):
-    """ condition 1，需要通过无头浏览器先拿到sessionID，然后再构造POST去拿内容"""
-
-
 class AjaxItem(Item):
-    """ condition 2，普通的ajax，通过索引页拿到相关json数据，然后构造URL去拿内容"""
+    """ condition 1，普通的ajax，通过索引页拿到相关json数据，然后构造URL去拿内容"""
+
+
+class HeadlessItem(Item):
+    """ condition 2，需要通过无头浏览器先拿到sessionID，然后再构造POST去拿内容"""
 
 
 class Crawler:
@@ -154,7 +154,7 @@ class Crawler:
             try:
                 response = requests.get(url_detail.url, headers=HEADER, timeout=TIMEOUT)
                 if response.status_code == 200:
-                    if url_detail.direct:  # 如果是直接可以获得内容，则数据形式肯定是json
+                    if url_detail.is_direct:  # 如果是直接可以获得内容，则数据形式肯定是json
                         url_detail.detail.pop('article_url_rule')  # 去掉无用规则
                         return self.fetch_json(response.json(), url_detail)
                     else:  # 否则就要从当前分类页获取文章页面的url，然后去各页面取
@@ -169,7 +169,7 @@ class Crawler:
                             with requests.Session() as session:  # 后面改成协程
                                 session.headers.update(HEADER)
                                 res = []
-                                url_details = [UrlDetail(url, url_detail.detail) for url in article_urls][:5]
+                                url_details = [UrlDetail(url, url_detail.detail) for url in article_urls]
                                 with ThreadPoolExecutor(max_workers=10) as executor:
                                     url_mapper = {executor.submit(self.fetch_thread, session, url_detail): url_detail
                                                   for url_detail in url_details}
@@ -190,115 +190,19 @@ class Crawler:
         else:
             raise OutTryException  # request部分失败，抛出特定异常给上层处理
 
-    @staticmethod
-    def fetch_json(json_, url_detail):  # 返回的是所有文章的UrlDetail列表
-        if not isinstance(json_, list):  # 适配单个的情况
-            json_ = [json_]
-        res = []
-        for obj in json_:
-            scrape_res = {}
-            for k, v in url_detail.detail.items():
-                try:
-                    scrape_res[k] = eval('obj{}'.format(v))
-                except KeyError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning('In fetch json: ', exc)
-            res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
-        return res
-
-    @staticmethod
-    def fetch(text, url_detail):  # 返回的是每一个文章的UrlDetail
-        html = etree.HTML(text)
-        scrape_res = {}
-        for k, v in url_detail.detail.items():
-            try:
-                ele = html.xpath(v)[0]
-                # scrape_res[k] = etree.tostring(ele, encoding='utf-8').decode('utf-8')  # 提取内容
-                scrape_res[k] = etree.tostring(ele, encoding='utf-8').decode('utf-8')  # 提取内容
-            except IndexError:
-                scrape_res[k] = None
-                LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                LOGGER.warning('In fetch: ', exc)
-        return UrlDetail(url=url_detail.url, detail=scrape_res)
-
-    # 文章的线程函数
-    def fetch_thread(self, session, url_detail, extra_cookie):
-        if extra_cookie:
-            session.cookies = extra_cookie
-        try:
-            resp = session.get(url_detail.url, timeout=TIMEOUT)
-            html = etree.HTML(self.transform2utf8(resp))
-            scrape_res = {}
-            for k, v in url_detail.detail.items():
-                try:
-                    ele = html.xpath(v)[0]
-                    # scrape_res[k] = etree.tostring(ele, encoding='utf-8').decode('utf-8')  # 提取内容
-                    scrape_res[k] = etree.tostring(ele, encoding='utf-8').decode('utf-8')  # 提取内容
-                except IndexError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning('In fetch: ', exc)
-            return UrlDetail(url=url_detail.url, detail=scrape_res)
-
-        except requests.Timeout:
-            LOGGER.warning('超时 {}'.format(url_detail.url))
-
-    @staticmethod
-    def fetch_json_thread(session, url_detail, extra_cookie):
-        if extra_cookie:
-            session.cookies = extra_cookie
-        try:
-            resp = session.get(url_detail.url, timeout=TIMEOUT)
-            assert resp.status_code == 200
-            scrape_res = {}
-            for k, v in url_detail.detail.items():
-                try:
-                    scrape_res[k] = eval(v.format('resp.json()'))  # 拿到json内的数据
-                except KeyError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning('In fetch: ', exc)
-            return UrlDetail(url=url_detail.url, detail=scrape_res)
-
-        except requests.Timeout:
-            LOGGER.warning('超时 {}'.format(url_detail.url))
-
-    @staticmethod
-    def get_cookies(session, url):
-        try:
-            resp = session.get(url, timeout=TIMEOUT)
-            return resp.cookies
-        except requests.Timeout:
-            pass
-
-    @classmethod
-    def transform2utf8(cls, resp):
-        if resp.encoding == 'utf-8':
-            return resp.text
-        else:
-            return resp.content.encode('gbk').decode('gbk').encode('utf-8')  # 待验证
-
-    def _scrap_keep_alive_core(self):
-        pass
-
     def _scrap_ajax_core(self, url_detail):
         max_try_again_time = MAX_TRY_AGAIN_TIME
         while max_try_again_time:
             try:
                 response = requests.get(url_detail.url, headers=HEADER, timeout=TIMEOUT)
                 if response.status_code == 200:
-                    if url_detail.json:
+                    if url_detail.is_json:
                         _proxy_func = self.fetch_json_thread
                     else:
                         _proxy_func = self.fetch_thread
 
                     article_params = eval(url_detail.detail.pop('article_url_rule').format('response.json()'))
-                    if url_detail.direct:  # 分类 -> content
+                    if url_detail.is_direct:  # 分类 -> content
                         query_url = url_detail.detail.pop('article_query_url')
                         article_urls = [query_url.format(param) for param in article_params]  # 构造查询文章的url
 
@@ -346,6 +250,103 @@ class Crawler:
                 max_try_again_time -= 1
         else:
             raise OutTryException  # request部分失败，抛出特定异常给上层处理
+
+    @staticmethod
+    def fetch_json(json_, url_detail):  # 返回的是所有文章的UrlDetail列表
+        if not isinstance(json_, list):  # 适配单个的情况
+            json_ = [json_]
+        res = []
+        for obj in json_:
+            scrape_res = {}
+            for k, v in url_detail.detail.items():
+                try:
+                    scrape_res[k] = eval('obj{}'.format(v))
+                except KeyError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                    LOGGER.warning('In fetch json: ', exc)
+            res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
+        return res
+
+    @staticmethod
+    def fetch(text, url_detail):  # 返回的是每一个文章的UrlDetail
+        html = etree.HTML(text)
+        scrape_res = {}
+        for k, v in url_detail.detail.items():
+            try:
+                ele = html.xpath(v)
+                if len(ele) < 2:
+                    scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
+                else:
+                    scrape_res[k] = ''.join([etree.tostring(e, encoding='utf-8').decode('utf-8') for e in ele])
+            except IndexError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                LOGGER.warning('In fetch: ', exc)
+        return UrlDetail(url=url_detail.url, detail=scrape_res)
+
+    # 文章的线程函数
+    def fetch_thread(self, session, url_detail, extra_cookie=None):
+        if extra_cookie:
+            session.cookies = extra_cookie
+        try:
+            resp = session.get(url_detail.url, timeout=TIMEOUT)
+            html = etree.HTML(self.transform2utf8(resp))
+            scrape_res = {}
+            for k, v in url_detail.detail.items():
+                try:
+                    ele = html.xpath(v)
+                    if len(ele) < 2:
+                        scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
+                    else:
+                        scrape_res[k] = ''.join([etree.tostring(e, encoding='utf-8').decode('utf-8') for e in ele])
+                except IndexError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                    LOGGER.warning('In fetch: ', exc)
+            return UrlDetail(url=url_detail.url, detail=scrape_res)
+
+        except requests.Timeout:
+            LOGGER.warning('超时 {}'.format(url_detail.url))
+
+    @staticmethod
+    def fetch_json_thread(session, url_detail, extra_cookie=None):
+        if extra_cookie:
+            session.cookies = extra_cookie
+        try:
+            resp = session.get(url_detail.url, timeout=TIMEOUT)
+            assert resp.status_code == 200
+            scrape_res = {}
+            for k, v in url_detail.detail.items():
+                try:
+                    scrape_res[k] = eval(v.format('resp.json()'))  # 拿到json内的数据
+                except KeyError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                    LOGGER.warning('In fetch: ', exc)
+            return UrlDetail(url=url_detail.url, detail=scrape_res)
+
+        except requests.Timeout:
+            LOGGER.warning('超时 {}'.format(url_detail.url))
+
+    @staticmethod
+    def get_cookies(session, url):
+        try:
+            resp = session.get(url, timeout=TIMEOUT)
+            return resp.cookies
+        except requests.Timeout:
+            pass
+
+    @classmethod
+    def transform2utf8(cls, resp):
+        if resp.encoding == 'utf-8':
+            return resp.text
+        else:
+            return resp.content.encode('gbk').decode('gbk').encode('utf-8')  # 待验证
 
 
 if __name__ == '__main__':
