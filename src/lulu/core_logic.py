@@ -25,7 +25,8 @@ def main():
             )
         )
     cc = Crawler(items)
-    print(len(cc.crawl()))
+    for k, v in cc.crawl().items():
+        print('{} 栏目拿了 {} 篇文章'.format(k, len(v)))
 
 
 if __name__ == '__main__':

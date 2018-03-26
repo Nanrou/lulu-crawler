@@ -143,9 +143,9 @@ class Crawler:
                 try:
                     res[_u] = future.result()
                 except OutTryException:
-                    LOGGER.warning('{} 超过重试次数'.format(_u))
+                    LOGGER.warning('超过重试次数 {}'.format(_u))
                 except Exception as exc:
-                    LOGGER.warning(('scrap static outside: ', exc))
+                    LOGGER.warning((_u, 'scrap static outside: ', exc))
         return res  # {'url1': urlDetail(url1, {key: value}), ...}
 
     def _scrape_static_core(self, url_detail):  # todo 计数
@@ -260,6 +260,9 @@ class Crawler:
             scrape_res = {}
             for k, v in url_detail.detail.items():
                 try:
+                    if v is None:
+                        scrape_res[k] = None
+                        continue
                     scrape_res[k] = eval('obj{}'.format(v))
                 except KeyError:
                     scrape_res[k] = None
@@ -275,6 +278,9 @@ class Crawler:
         scrape_res = {}
         for k, v in url_detail.detail.items():
             try:
+                if v is None:
+                    scrape_res[k] = None
+                    continue
                 ele = html.xpath(v)
                 if len(ele) < 2:
                     scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
@@ -297,6 +303,9 @@ class Crawler:
             scrape_res = {}
             for k, v in url_detail.detail.items():
                 try:
+                    if v is None:
+                        scrape_res[k] = None
+                        continue
                     ele = html.xpath(v)
                     if len(ele) < 2:
                         scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
@@ -305,8 +314,14 @@ class Crawler:
                 except IndexError:
                     scrape_res[k] = None
                     LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                except TypeError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
+                except etree.XPathEvalError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
                 except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning('In fetch: ', exc)
+                    LOGGER.warning(('In fetch thread: ', exc))
             return UrlDetail(url=url_detail.url, detail=scrape_res)
 
         except requests.Timeout:
@@ -322,12 +337,18 @@ class Crawler:
             scrape_res = {}
             for k, v in url_detail.detail.items():
                 try:
+                    if v is None:
+                        scrape_res[k] = None
+                        continue
                     scrape_res[k] = eval(v.format('resp.json()'))  # 拿到json内的数据
                 except KeyError:
                     scrape_res[k] = None
                     LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                except TypeError:
+                    scrape_res[k] = None
+                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
                 except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning('In fetch: ', exc)
+                    LOGGER.warning(('In fetch json thread: ', exc))
             return UrlDetail(url=url_detail.url, detail=scrape_res)
 
         except requests.Timeout:
@@ -345,8 +366,10 @@ class Crawler:
     def transform2utf8(cls, resp):
         if resp.encoding == 'utf-8':
             return resp.text
-        else:
-            return resp.content.encode('gbk').decode('gbk').encode('utf-8')  # 待验证
+        try:
+            return resp.content.decode('utf-8')  # 先猜文档本身是utf8，只是没从头部识别出来
+        except UnicodeDecodeError:
+            return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
 
 
 if __name__ == '__main__':
