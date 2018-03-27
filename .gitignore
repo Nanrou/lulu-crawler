@@ -103,4 +103,4 @@ ENV/
 for_uncle_xu.py
 test_file.txt
 test.py
-website.json
+website*.json
