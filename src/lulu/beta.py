@@ -71,7 +71,7 @@ class Crawler:
                     LOGGER.warning('超过重试次数 {}'.format(_u))
                 except Exception as exc:
                     LOGGER.warning((_u, '最外层: ', exc))
-        return res  # {'url1': urlDetail(url1, {key: value}), ...}
+        return res  # {'url1': [urlDetail(url1-1, {key: value})], ...}
 
     def _scrape_static_core(self, url_detail):  # 只处理普通的json式数据
         response = self.handle_request(url_detail.url)
@@ -80,7 +80,7 @@ class Crawler:
         url_detail.detail.pop('article_middle_url_rule')
         url_detail.detail.pop('article_query_url')
 
-        return self.fetch_json(response.json(), url_detail)  # 从json中提取数据
+        return self.fetch_json_static(response.json(), url_detail)  # 从json中提取数据
 
     def _scrap_ajax_core(self, url_detail):
         category_response = self.handle_request(url_detail.url)
@@ -127,7 +127,7 @@ class Crawler:
         return res
 
     @staticmethod
-    def fetch_json(json_, url_detail):
+    def fetch_json_static(json_, url_detail):
         if not isinstance(json_, list):  # 适配单个的情况
             json_ = [json_]
         res = []
@@ -153,9 +153,31 @@ class Crawler:
                 res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
         return res
 
+    @staticmethod
+    def fetch_json_ajax(json_, url_detail):
+        scrape_res = {}
+        fail_time = 0
+        for k, v in url_detail.detail.items():
+            try:
+                if v is None:
+                    scrape_res[k] = None
+                    continue
+                scrape_res[k] = eval(v.format('json_'))  # 注意这里动态解析
+            except KeyError:
+                scrape_res[k] = None
+                LOGGER.info('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                fail_time += 1
+            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                LOGGER.warning(('In ajax core json: ', exc))
+                fail_time += 1
+        if fail_time > 3:
+            LOGGER.warning('提取数据失败 {}'.format(url_detail.url))
+        else:
+            return UrlDetail(url=url_detail.url, detail=scrape_res)
+
     def thread_func_fetch_json(self, session, url_detail, extra_cookie=None):
         response = self.handle_request(url_detail.url, session, extra_cookie)
-        return self.fetch_json(response.json(), url_detail)
+        return self.fetch_json_ajax(response.json(), url_detail)
 
     @staticmethod
     def handle_request(url, session=None, extra_cookie=None):  # 将请求这个动作单独抽象出来

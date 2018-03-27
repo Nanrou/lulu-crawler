@@ -35,7 +35,7 @@ class CategoryTable(BaseModel):
 
     condition = SmallIntegerField(default=0, null=False)
     is_direct = BooleanField(default=False)  # 是否可以直接在分类页拿到内容
-    is_json = BooleanField(default=False)  # 内容是否为json格式
+    # is_json = BooleanField(default=False)  # 内容是否为json格式
     # publish_time_in_outside = BooleanField(default=False)  # 发布时间是否只能在外部拿到
 
     # 内容的解析规则
