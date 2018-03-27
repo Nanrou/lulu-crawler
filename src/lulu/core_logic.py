@@ -1,6 +1,7 @@
 import json
 
 from lulu.alpha import Crawler, StaticItem, AjaxItem
+from lulu.beta import Crawler
 from db.orm import CategoryTable, ArticleTable
 
 
@@ -25,8 +26,8 @@ def main():
             )
         )
     cc = Crawler(items)
-    for k, v in cc.crawl().items():
-        print('{} 栏目拿了 {} 篇文章'.format(k, len(v)))
+    for k, v in cc.first_crawl().items():
+        print(k, v)
 
 
 if __name__ == '__main__':

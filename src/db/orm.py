@@ -23,6 +23,7 @@ class CompanyTable(BaseModel):
 
     # is_deleted = BooleanField(default=False)
     # remark = CharField(null=True)
+
     class Meta:
         table_name = 'CompanyTable'
 
@@ -35,14 +36,15 @@ class CategoryTable(BaseModel):
     condition = SmallIntegerField(default=0, null=False)
     is_direct = BooleanField(default=False)  # 是否可以直接在分类页拿到内容
     is_json = BooleanField(default=False)  # 内容是否为json格式
+    # publish_time_in_outside = BooleanField(default=False)  # 发布时间是否只能在外部拿到
 
     # 内容的解析规则
-    article_url_rule = CharField(max_length=255, null=True)
-    article_middle_url_rule = CharField(max_length=255, null=True)
-    article_query_url = CharField(max_length=255, null=True)  # 构造查询文章的url
+    article_url_rule = CharField(max_length=255, null=True, default=None)
+    article_middle_url_rule = CharField(max_length=255, null=True, default=None)
+    article_query_url = CharField(max_length=255, null=True, default=None)  # 构造查询文章的url
 
     article_title_rule = CharField(max_length=255, null=False)
-    article_author_rule = CharField(max_length=255, null=False)
+    article_author_rule = CharField(max_length=255, null=True)
     article_publish_time_rule = CharField(max_length=255, null=False)
     article_content_rule = CharField(max_length=255, null=False)
 
@@ -58,9 +60,9 @@ class CategoryTable(BaseModel):
 
 class ArticleTable(BaseModel):
     # gid = CharField(max_length=64, null=True, unique=True)
-    url = CharField(max_length=255, unique=True)
-    title = CharField(max_length=128, null=True, unique=True)
-    author = CharField(max_length=32, null=True, unique=True)
+    url = CharField(max_length=255)
+    title = CharField(max_length=64, null=True)
+    author = CharField(max_length=64, null=True)
     publish_time = DateTimeField(default=datetime.now())
     collected_time = DateTimeField(default=datetime.now())
     content = TextField(null=True)
@@ -72,6 +74,7 @@ class ArticleTable(BaseModel):
 
     # is_deleted = BooleanField(default=False)
     # remark = CharField(null=True)
+
     class Meta:
         table_name = 'ArticleTable'
 

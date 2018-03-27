@@ -10,7 +10,7 @@ def create_tables():
 
 
 def input_json2db():
-    with open('website.json') as rf:
+    with open('website2.json') as rf:
         json_data = json.load(rf)
     for item in json_data:
         CompanyTable.create(domain=item['domain'], name=item['company'])

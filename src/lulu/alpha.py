@@ -126,12 +126,12 @@ class Crawler:
             'AjaxItem': self._scrap_ajax_core,
         }
 
-    def crawl(self):
+    def first_crawl(self):
         return self._scrap()
 
     def _scrap(self):
         res = {}
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             url_mapper = {
                 executor.submit(self.item_handle_mapper[type(url_detail).__name__], url_detail): url_detail.url
                 for url_detail in self.items
@@ -177,6 +177,10 @@ class Crawler:
                                         _u = url_mapper[future]
                                         try:
                                             res.append(future.result())
+                                        except OutTryException:
+                                            LOGGER.warning('超过重试次数 {}'.format(_u))
+                                        except requests.ConnectionError:
+                                            LOGGER.warning('连接错误 {}'.format(_u))
                                         except Exception as exc:
                                             LOGGER.warning(('scrap static normal: ', _u.detail, exc))
                             return res
@@ -295,64 +299,67 @@ class Crawler:
 
     # 文章的线程函数
     def fetch_thread(self, session, url_detail, extra_cookie=None):
-        if extra_cookie:
-            session.cookies = extra_cookie
-        try:
-            resp = session.get(url_detail.url, timeout=TIMEOUT)
-            html = etree.HTML(self.transform2utf8(resp))
-            scrape_res = {}
-            for k, v in url_detail.detail.items():
-                try:
-                    if v is None:
-                        scrape_res[k] = None
-                        continue
-                    ele = html.xpath(v)
-                    if len(ele) < 2:
-                        scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
-                    else:
-                        scrape_res[k] = ''.join([etree.tostring(e, encoding='utf-8').decode('utf-8') for e in ele])
-                except IndexError:
+        resp = self.handle_request(session, url_detail.url, extra_cookie)
+        html = etree.HTML(self.transform2utf8(resp))
+        scrape_res = {}
+        for k, v in url_detail.detail.items():
+            try:
+                if v is None:
                     scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-                except TypeError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
-                except etree.XPathEvalError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
-                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning(('In fetch thread: ', exc))
-            return UrlDetail(url=url_detail.url, detail=scrape_res)
+                    continue
+                ele = html.xpath(v)
+                if len(ele) < 2:
+                    scrape_res[k] = etree.tostring(ele[0], encoding='utf-8').decode('utf-8')  # 提取内容
+                else:
+                    scrape_res[k] = ''.join([etree.tostring(e, encoding='utf-8').decode('utf-8') for e in ele])
+            except IndexError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+            except TypeError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
+            except etree.XPathEvalError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
+            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                LOGGER.warning(('In fetch thread: ', exc))
+        return UrlDetail(url=url_detail.url, detail=scrape_res)
 
-        except requests.Timeout:
-            LOGGER.warning('超时 {}'.format(url_detail.url))
+    def fetch_json_thread(self, session, url_detail, extra_cookie=None):
+        resp = self.handle_request(session, url_detail.url, extra_cookie)
+        scrape_res = {}
+        for k, v in url_detail.detail.items():
+            try:
+                if v is None:
+                    scrape_res[k] = None
+                    continue
+                scrape_res[k] = eval(v.format('resp.json()'))  # 拿到json内的数据
+            except KeyError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+            except TypeError:
+                scrape_res[k] = None
+                LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
+            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                LOGGER.warning(('In fetch json thread: ', exc))
+        return UrlDetail(url=url_detail.url, detail=scrape_res)
 
     @staticmethod
-    def fetch_json_thread(session, url_detail, extra_cookie=None):
+    def handle_request(session, url, extra_cookie):  # 将请求这个动作单独抽象出来
+        max_try_again_time = MAX_TRY_AGAIN_TIME
         if extra_cookie:
             session.cookies = extra_cookie
-        try:
-            resp = session.get(url_detail.url, timeout=TIMEOUT)
-            assert resp.status_code == 200
-            scrape_res = {}
-            for k, v in url_detail.detail.items():
-                try:
-                    if v is None:
-                        scrape_res[k] = None
-                        continue
-                    scrape_res[k] = eval(v.format('resp.json()'))  # 拿到json内的数据
-                except KeyError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
-                except TypeError:
-                    scrape_res[k] = None
-                    LOGGER.warning('{} 的 {} 拿不到东西，规则为{}'.format(url_detail.url, k, v))
-                except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning(('In fetch json thread: ', exc))
-            return UrlDetail(url=url_detail.url, detail=scrape_res)
-
-        except requests.Timeout:
-            LOGGER.warning('超时 {}'.format(url_detail.url))
+        while max_try_again_time:
+            try:
+                resp = session.get(url, timeout=TIMEOUT)
+                if resp.status_code == 200:
+                    return resp
+                else:
+                    max_try_again_time -= 1
+            except requests.Timeout:
+                max_try_again_time -= 1
+        else:
+            raise OutTryException
 
     @staticmethod
     def get_cookies(session, url):
