@@ -60,7 +60,7 @@ class BloomFilter:
 class RedisAdapter:
     def __init__(self, redis=None):
         if redis is None:
-            redis = Redis()
+            redis = Redis(db=2)
         self.redis = redis
 
     def __getitem__(self, item):

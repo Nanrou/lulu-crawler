@@ -9,6 +9,12 @@ import requests
 from logger import MyLogger
 from exception import OutTryException
 from utils import generate_header
+from bloom_filter import MyBloomFilter
+
+"""
+过滤操作，暂时直接在主逻辑里判断
+注意，要针对两种情况分别判断，StaticItem的是url+title，而AjaxItem的是url
+"""
 
 HEADER = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -24,6 +30,7 @@ MAX_TRY_AGAIN_TIME = 3
 TIMEOUT = 3
 UrlDetail = namedtuple('UrlDetail', ['url', 'detail'])  # url是网址，detail中是字典: {内容1: 规则1, ...}
 LOGGER = MyLogger(__file__)
+BloomFilter = MyBloomFilter()
 
 
 class Item:
@@ -74,16 +81,16 @@ class Crawler:
         return res  # {'url1': [urlDetail(url1-1, {key: value})], ...}
 
     def _scrape_static_core(self, url_detail):  # 只处理普通的json式数据
-        response = self.handle_request(url_detail.url)
+        response = self._handle_request(url_detail.url)
         # 去掉无用规则
         url_detail.detail.pop('article_url_rule')
         url_detail.detail.pop('article_middle_url_rule')
         url_detail.detail.pop('article_query_url')
 
-        return self.fetch_json_static(response.json(), url_detail)  # 从json中提取数据
+        return self._fetch_json_static(response.json(), url_detail)  # 从json中提取数据
 
     def _scrap_ajax_core(self, url_detail):
-        category_response = self.handle_request(url_detail.url)
+        category_response = self._handle_request(url_detail.url)
         # 通过索引页提取文章的参数
         article_params = eval(url_detail.detail.pop('article_url_rule').format('category_response.json()'))
         query_url = url_detail.detail.pop('article_query_url')
@@ -97,9 +104,9 @@ class Crawler:
             with requests.Session() as session:  # 这一步是去拿每个文章页的cookie
                 session.headers.update(HEADER)
                 _middle_url = url_detail.detail.pop('article_middle_url_rule')
-                with ThreadPoolExecutor(max_workers=5) as executor:
+                with ThreadPoolExecutor(max_workers=3) as executor:
                     url_mapper = {
-                        executor.submit(self.handle_request, _middle_url.format(_param), session): _param
+                        executor.submit(self._handle_request, _middle_url.format(_param), session): _param
                         for _param in article_params
                     }
                     for future in as_completed(url_mapper):
@@ -112,12 +119,14 @@ class Crawler:
             url_details = [(UrlDetail(query_url.format(k), url_detail.detail), v)
                            for k, v in param_cookies_mapper.items() if v]  # 每个文章有自己的sessionID/cookie
 
+        filter_url_details = [u for u in url_details if not BloomFilter.is_contain(u[0].url)]  # 过滤
+
         with requests.Session() as session:  # 后面改成协程
             session.headers.update(HEADER)
             res = []
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                url_mapper = {executor.submit(self.thread_func_fetch_json, session, *url_detail): url_detail[0]
-                              for url_detail in url_details}
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                url_mapper = {executor.submit(self._thread_func_fetch_json, session, *url_detail): url_detail[0]
+                              for url_detail in filter_url_details}
                 for future in as_completed(url_mapper):
                     _u = url_mapper[future]
                     try:
@@ -127,7 +136,7 @@ class Crawler:
         return res
 
     @staticmethod
-    def fetch_json_static(json_, url_detail):
+    def _fetch_json_static(json_, url_detail):
         if not isinstance(json_, list):  # 适配单个的情况
             json_ = [json_]
         res = []
@@ -149,12 +158,16 @@ class Crawler:
                     fail_time += 1
             if fail_time > 3:
                 LOGGER.warning('提取数据失败 {}的第{}项'.format(url_detail.url, index))
-            else:
-                res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
+            else:  # 过滤判断
+                if BloomFilter.is_contain(''.join([url_detail.url, scrape_res['article_title_rule']])):
+                    continue
+                else:
+                    res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
+                    BloomFilter.insert(''.join([url_detail.url, scrape_res['article_title_rule']]))
         return res
 
     @staticmethod
-    def fetch_json_ajax(json_, url_detail):
+    def _fetch_json_ajax(json_, url_detail):
         scrape_res = {}
         fail_time = 0
         for k, v in url_detail.detail.items():
@@ -175,12 +188,12 @@ class Crawler:
         else:
             return UrlDetail(url=url_detail.url, detail=scrape_res)
 
-    def thread_func_fetch_json(self, session, url_detail, extra_cookie=None):
-        response = self.handle_request(url_detail.url, session, extra_cookie)
-        return self.fetch_json_ajax(response.json(), url_detail)
+    def _thread_func_fetch_json(self, session, url_detail, extra_cookie=None):
+        response = self._handle_request(url_detail.url, session, extra_cookie)
+        return self._fetch_json_ajax(response.json(), url_detail)
 
     @staticmethod
-    def handle_request(url, session=None, extra_cookie=None):  # 将请求这个动作单独抽象出来
+    def _handle_request(url, session=None, extra_cookie=None):  # 将请求这个动作单独抽象出来
         max_try_again_time = MAX_TRY_AGAIN_TIME
         if session and extra_cookie:
             session.cookies = extra_cookie

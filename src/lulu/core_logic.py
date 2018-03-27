@@ -5,12 +5,15 @@ from html2text import HTML2Text
 from lulu.alpha import Crawler, StaticItem, AjaxItem
 from lulu.beta import Crawler
 from db.orm import CategoryTable, ArticleTable, MYSQL_DB
+from bloom_filter import MyBloomFilter
 
 TextMaker = HTML2Text()
 TextMaker.ignore_links = True
 TextMaker.ignore_images = True
 TextMaker.ignore_tables = True
 TextMaker.single_line_break = True
+
+BloomFilter = MyBloomFilter()
 
 
 def first_crawl():
@@ -38,6 +41,8 @@ def first_crawl():
 
     cc = Crawler(items)
     for k, v in cc.first_crawl().items():
+        if not v:
+            continue
         insert_list = []
         company, category = url_company_category_mapper[k]
         for single_url in v:
@@ -60,5 +65,12 @@ def first_crawl():
             ArticleTable.insert_many(insert_list).execute()
 
 
+def init_redis():  # 根据第一次抓取去初始化布隆过滤器
+    articles = ArticleTable.select(ArticleTable.url, ArticleTable.title)
+    for article in articles:
+        BloomFilter.insert(''.join([article.url, article.title]))
+
+
 if __name__ == '__main__':
     first_crawl()
+    # init_redis()
