@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from werkzeug.security import generate_password_hash, check_password_hash
 from peewee import MySQLDatabase, SqliteDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
     TextField, ForeignKeyField
 
@@ -69,6 +71,7 @@ class ArticleTable(BaseModel):
 
     company_name = CharField(max_length=255, null=False)
     category_name = CharField(max_length=255, null=False)
+
     # company_name = ForeignKeyField(CompanyTable, backref='articles')
     # category_name = ForeignKeyField(CategoryTable, backref='articles')
 
@@ -79,4 +82,20 @@ class ArticleTable(BaseModel):
         table_name = 'ArticleTable'
 
 
-ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable]
+class UserTable(BaseModel):
+    username = CharField(max_length=16, unique=True)
+    password_hash = CharField(max_length=255)
+
+    @property
+    def password(self):
+        raise RuntimeError('You cant get password directly')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable]
