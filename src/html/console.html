@@ -11,7 +11,6 @@
   <script src="https://cdn.bootcss.com/axios/0.18.0/axios.js"></script>
   <style>
     .vertical-container {
-      height: 800px;
       display: -webkit-flex;
       display: flex;
       -webkit-align-items: center;
@@ -24,7 +23,6 @@
       display: block;
       width: 448px;
       height: 700px;
-      margin-top: 80px;
     }
   </style>
 </head>
@@ -32,46 +30,70 @@
 <body>
   <div id="app">
     <el-container>
-      <el-main>
-        <div class="vertical-container">
-          <div class="form">
-            <el-form :model="form" ref="form" label-width="80px">
-              <el-form-item label="公司名称">
-                <el-input v-model="form.company" placeholder="form.company"></el-input>
-              </el-form-item>
-              <el-form-item label="公司主页">
-                <el-input v-model="form.domain" placeholder="form.domain"></el-input>
-              </el-form-item>
-              <el-form-item label="栏目名称"> <!--TODO 循环多个 -->
-                <el-input v-model="form.category" placeholder="form.category"></el-input>
-              </el-form-item>
-              <el-form-item label="栏目地址">
-                <el-input v-model="form.categoryUrl" placeholder="form.categoryUrl"></el-input>
-              </el-form-item>
-              <el-form-item label="分类">
-                <el-select v-model="form.condition" placeholder="form.condtion">
-                  <el-option label="0" value="0"></el-option>
-                  <el-option label="1" value="1"></el-option>
-                </el-select>
-              </el-form-item>
-              <el-form-item label="Directly">
-                  <el-radio-group v-model="form.isDirect" size="medium">
-                      <el-radio border label="是"></el-radio>
-                      <el-radio border label="否"></el-radio>
-                    </el-radio-group>
-              </el-form-item>
-              <el-form-item label="公司名称">
-                <el-input v-model="form.company" placeholder="form.company"></el-input>
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="submitForm('form')">提交</el-button>
-                <el-button @click="resetForm('form')">重置</el-button>
-              </el-form-item>
-            </el-form>
+      <el-header>
+
+      </el-header>
+      <el-container>
+        <el-main style="margin-right: 30%">
+          <div class="vertical-container">
+            <div class="form">
+              <el-form :model="form" ref="form" label-width="125px">
+                <el-form-item label="公司名称">
+                  <el-input v-model="form.company" placeholder="form.company"></el-input>
+                </el-form-item>
+                <el-form-item label="公司主页">
+                  <el-input v-model="form.domain" placeholder="form.domain"></el-input>
+                </el-form-item>
+                <el-form-item label="栏目名称"> <!--TODO 循环多个 -->
+                  <el-input v-model="form.category" placeholder="form.category"></el-input>
+                </el-form-item>
+                <el-form-item label="栏目地址">
+                  <el-input v-model="form.categoryUrl" placeholder="form.categoryUrl"></el-input>
+                </el-form-item>
+                <el-form-item label="分类">
+                  <el-select v-model="form.condition" placeholder="form.condtion">
+                    <el-option label="0" value="0"></el-option>
+                    <el-option label="1" value="1"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="Directly" prop="isDirect">
+                  <el-switch v-model="form.isDirect" placeholder="form.isDirect"></el-switch>
+                </el-form-item>
+                <el-form-item label="JSON地址规则">
+                  <el-input v-model="form.article_url_rule" placeholder="form.article_url_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章页面地址">
+                  <el-input v-model="form.article_middle_url_rule" placeholder="form.article_middle_url_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章查询地址">
+                  <el-input v-model="form.article_query_rule" placeholder="form.article_query_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章标题规则">
+                  <el-input v-model="form.article_title_rule" placeholder="form.article_title_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章作者规则">
+                  <el-input v-model="form.article_author_rule" placeholder="form.article_author_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章发布时间规则">
+                  <el-input v-model="form.article_publish_time_rule" placeholder="form.article_publish_time_rule"></el-input>
+                </el-form-item>
+                <el-form-item label="文章正文规则">
+                  <el-input v-model="form.article_content_rule" placeholder="form.article_content_rule"></el-input>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="submitForm('form')">提交</el-button>
+                  <el-button @click="resetForm('form')">重置</el-button>
+                  <el-button type="danger" round @click="editForm" size="small">提交修改</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
           </div>
-        </div>
-      </el-main>
-      </el-contaienr>
+        </el-main>
+        <el-aside width="400px">
+          Aside
+        </el-aside>
+      </el-container>
+    </el-contaienr>
   </div>
 </body>
 <script>
@@ -80,7 +102,8 @@
     data: function () {
       return {
         form: {
-          'company': 'bbbbb'
+          'company': '',
+          'isDirect': false,
         },
       };
     },
@@ -102,7 +125,8 @@
               console.log()
             }
           )
-      }
+      },
+      editForm() {}
     }
   })
 </script>
