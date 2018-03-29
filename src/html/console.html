@@ -11,7 +11,7 @@
   <script src="https://cdn.bootcss.com/axios/0.18.0/axios.js"></script>
   <style>
     .vertical-container {
-      height: 500px;
+      height: 800px;
       display: -webkit-flex;
       display: flex;
       -webkit-align-items: center;
@@ -23,8 +23,8 @@
     .form {
       display: block;
       width: 448px;
-      height: 400px;
-      margin-top: 120px;
+      height: 700px;
+      margin-top: 80px;
     }
   </style>
 </head>
@@ -36,6 +36,33 @@
         <div class="vertical-container">
           <div class="form">
             <el-form :model="form" ref="form" label-width="80px">
+              <el-form-item label="公司名称">
+                <el-input v-model="form.company" placeholder="form.company"></el-input>
+              </el-form-item>
+              <el-form-item label="公司主页">
+                <el-input v-model="form.domain" placeholder="form.domain"></el-input>
+              </el-form-item>
+              <el-form-item label="栏目名称"> <!--TODO 循环多个 -->
+                <el-input v-model="form.category" placeholder="form.category"></el-input>
+              </el-form-item>
+              <el-form-item label="栏目地址">
+                <el-input v-model="form.categoryUrl" placeholder="form.categoryUrl"></el-input>
+              </el-form-item>
+              <el-form-item label="分类">
+                <el-select v-model="form.condition" placeholder="form.condtion">
+                  <el-option label="0" value="0"></el-option>
+                  <el-option label="1" value="1"></el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item label="Directly">
+                  <el-radio-group v-model="form.isDirect" size="medium">
+                      <el-radio border label="是"></el-radio>
+                      <el-radio border label="否"></el-radio>
+                    </el-radio-group>
+              </el-form-item>
+              <el-form-item label="公司名称">
+                <el-input v-model="form.company" placeholder="form.company"></el-input>
+              </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="submitForm('form')">提交</el-button>
                 <el-button @click="resetForm('form')">重置</el-button>
@@ -53,6 +80,7 @@
     data: function () {
       return {
         form: {
+          'company': 'bbbbb'
         },
       };
     },
