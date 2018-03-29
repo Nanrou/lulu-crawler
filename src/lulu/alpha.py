@@ -145,7 +145,7 @@ class Crawler:
                 except OutTryException:
                     LOGGER.warning('超过重试次数 {}'.format(_u))
                 except Exception as exc:
-                    LOGGER.warning((_u, 'scrap static outside: ', exc))
+                    LOGGER.warning((_u, 'scrap statics outside: ', exc))
         return res  # {'url1': urlDetail(url1, {key: value}), ...}
 
     def _scrape_static_core(self, url_detail):  # todo 计数
@@ -182,7 +182,7 @@ class Crawler:
                                         except requests.ConnectionError:
                                             LOGGER.warning('连接错误 {}'.format(_u))
                                         except Exception as exc:
-                                            LOGGER.warning(('scrap static normal: ', _u.detail, exc))
+                                            LOGGER.warning(('scrap statics normal: ', _u.detail, exc))
                             return res
                         except IndexError:
                             LOGGER.warning('{} 的 article url rule 部分有问题'.format(url_detail.url))

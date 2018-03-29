@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta title="登陆">
+  <meta charset="UTF-8">
+  <!-- import CSS -->
+  <link rel="stylesheet" href="https://cdn.bootcss.com/element-ui/2.2.2/theme-chalk/index.css">
+  <script src="https://cdn.bootcss.com/vue/2.5.16/vue.js"></script>
+  <script src="https://cdn.bootcss.com/element-ui/2.2.2/index.js"></script>
+  <script src="https://cdn.bootcss.com/axios/0.18.0/axios.js"></script>
+  <style>
+    .vertical-container {
+      height: 500px;
+      display: -webkit-flex;
+      display:         flex;
+      -webkit-align-items: center;
+              align-items: center;
+      -webkit-justify-content: center;
+              justify-content: center;
+    }
+    .form {
+      display: block;
+      width: 448px;
+      height: 400px;
+      margin-top: 120px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+  <el-container>
+    <el-main>
+      <div class="vertical-container">
+        <div class="form">
+          <el-form :model="form" ref="form" label-width="80px">
+            <el-form-item
+              label="账号"
+              prop="username"
+              :rules="[
+                { required: true, message: '账号不能为空'},
+              ]"
+            >
+              <el-input v-model="form.username"></el-input>
+            </el-form-item>
+            <el-form-item
+              label="密码"
+              prop="password"
+              :rules="[
+                { required: true, message: '密码不能为空'},
+              ]"
+            >
+              <el-input type="password" v-model="form.password" auto-complete="off"></el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="submitForm('form')">提交</el-button>
+              <el-button @click="resetForm('form')">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+    </el-main>
+  </el-contaienr>
+  </div>
+</body>
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data: function() {
+        return { 
+          form: {
+            username: '',
+            password: '',
+          },
+        };
+      },
+      mounted: function() {
+        this.remainLogIn()
+      },
+      methods: {
+        submitForm(formName) {
+          this.$refs[formName].validate((valid) => {
+            if (valid) {
+              axios.post('/api/login', this.form)
+              .then(
+                response => {
+                  if (response.data['status'] == 'success') {
+                    window.location.href='/console';
+                  } else {
+                    this.$message('账号或密码错误');
+                  }
+                }
+              )
+              .catch(
+                error => {
+                  console.log(error)
+                }
+              )
+            } else {
+              return false;
+              }
+          });
+        },
+        resetForm(formName) {
+          this.$refs[formName].resetFields();
+        },
+        remainLogIn(){
+          if (window.location.href.split('?').pop()=='next=/console') {
+            this.$message('登陆过期，请重新登陆');
+          }
+        }
+      }
+    })
+  </script>
+</html>

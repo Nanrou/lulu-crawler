@@ -154,7 +154,7 @@ class Crawler:
                     LOGGER.info('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
                     fail_time += 1
                 except Exception as exc:  # 后面可以看一下需要捕捉什么异常
-                    LOGGER.warning(('In static core json: ', exc))
+                    LOGGER.warning(('In statics core json: ', exc))
                     fail_time += 1
             if fail_time > 3:
                 LOGGER.warning('提取数据失败 {}的第{}项'.format(url_detail.url, index))

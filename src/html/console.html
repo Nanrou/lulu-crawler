@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta title="控制台">
+  <meta charset="UTF-8">
+  <!-- import CSS -->
+  <link rel="stylesheet" href="https://cdn.bootcss.com/element-ui/2.2.2/theme-chalk/index.css">
+  <script src="https://cdn.bootcss.com/vue/2.5.16/vue.js"></script>
+  <script src="https://cdn.bootcss.com/element-ui/2.2.2/index.js"></script>
+  <script src="https://cdn.bootcss.com/axios/0.18.0/axios.js"></script>
+  <style>
+    .vertical-container {
+      height: 500px;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+    }
+
+    .form {
+      display: block;
+      width: 448px;
+      height: 400px;
+      margin-top: 120px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <el-container>
+      <el-main>
+        <div class="vertical-container">
+          <div class="form">
+            <el-form :model="form" ref="form" label-width="80px">
+              <el-form-item>
+                <el-button type="primary" @click="submitForm('form')">提交</el-button>
+                <el-button @click="resetForm('form')">重置</el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
+      </el-main>
+      </el-contaienr>
+  </div>
+</body>
+<script>
+  var app = new Vue({
+    el: '#app',
+    data: function () {
+      return {
+        form: {
+        },
+      };
+    },
+    created: function () {
+      this.checkLogIn();
+    },
+    methods: {
+      checkLogIn() {
+        axios.get('/api/checkLogIn')
+          .then(
+            response => {
+              if (response.data['status']=='fail'){
+                window.location.href='/login?next=/console';
+              }
+            }
+          )
+          .catch(
+            error => {
+              console.log()
+            }
+          )
+      }
+    }
+  })
+</script>
+
+</html>

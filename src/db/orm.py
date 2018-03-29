@@ -97,5 +97,8 @@ class UserTable(BaseModel):
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    class Meta:
+        table_name = 'UserTable'
+
 
 ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable]

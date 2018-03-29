@@ -37,5 +37,8 @@ def input_json2db():
 
 
 if __name__ == '__main__':
-    create_tables()
-    input_json2db()
+    # create_tables()
+    # input_json2db()
+    from db.orm import UserTable
+    # MYSQL_DB.create_tables([UserTable], safe=True)
+    UserTable.create(username='root', password='123')
