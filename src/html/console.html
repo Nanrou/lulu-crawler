@@ -19,10 +19,17 @@
       justify-content: center;
     }
 
-    .form {
+    .form { 
       display: block;
       width: 448px;
-      height: 700px;
+      height: 800px;
+    }
+
+    .card { 
+      display: block;
+      width: 480px;
+      height: 800px;
+      padding: 18px 10px;
     }
 
     hr {
@@ -42,7 +49,7 @@
 
       </el-header>
       <el-container>
-        <el-main style="/*! margin-right: 30% */">
+        <el-main>
           <div class="vertical-container">
             <div class="form">
               <el-form :model="form" ref="form" label-width="125px">
@@ -70,10 +77,12 @@
                       }"
                     >
                       <el-input v-model="cate.url" placeholder="cate.url"></el-input>
-                      <el-button type="danger" round size="small" @click.prevent="removeCategory(cate)">删除 此栏目</el-button>
+                      <div style="float: right">
+                        <el-button type="danger" round size="small" @click.prevent="removeCategory(cate)">删除 此栏目</el-button>
+                      </div>
                     </el-form-item>
                   </div>
-                  <el-button style="margin-left: 20%; margin-bottom: 8px" type="primary" @click.prevent="addCategory">新增栏目</el-button>
+                  <el-button style="margin-left: 20%; margin-bottom: 18px" type="primary" @click.prevent="addCategory">新增栏目</el-button>
                 </div>
                 <el-form-item label="分类">
                   <el-select v-model="form.condition" placeholder="form.condtion">
@@ -85,15 +94,33 @@
                   <el-switch v-model="form.isDirect" placeholder="form.isDirect"></el-switch>
                 </el-form-item>
                 <hr/>
-                <el-form-item label="JSON地址规则">
-                  <el-input v-model="form.article_url_rule" placeholder="form.article_url_rule"></el-input>
-                </el-form-item>
-                <el-form-item label="文章页面地址">
-                  <el-input v-model="form.article_middle_url_rule" placeholder="form.article_middle_url_rule"></el-input>
-                </el-form-item>
-                <el-form-item label="文章查询地址">
-                  <el-input v-model="form.article_query_rule" placeholder="form.article_query_rule"></el-input>
-                </el-form-item>
+                <div v-if="form.condition == 1">
+                  <el-form-item
+                    :label="JSON地址规则"
+                    :rules="{
+                      required: true, message: 'JSON地址规则不能为空', trigger: 'blur'
+                    }"
+                   >
+                    <el-input v-model="form.article_url_rule" placeholder="form.article_url_rule"></el-input>
+                  </el-form-item>
+                  <el-form-item 
+                    v-if="!form.isDirect" 
+                    :label="文章页面地址"
+                    :rules="{
+                      required: true, message: '文章页面地址不能为空', trigger: 'blur'
+                    }"
+                  >
+                    <el-input v-model="form.article_middle_url_rule" placeholder="form.article_middle_url_rule"></el-input>
+                  </el-form-item>
+                  <el-form-item 
+                    :label="文章查询地址"
+                    :rules="{
+                      required: true, message: '文章查询地址不能为空', trigger: 'blur'
+                    }"
+                  >
+                    <el-input v-model="form.article_query_rule" placeholder="form.article_query_rule"></el-input>
+                  </el-form-item>
+                </div>
                 <el-form-item label="文章标题规则">
                   <el-input v-model="form.article_title_rule" placeholder="form.article_title_rule"></el-input>
                 </el-form-item>
@@ -107,16 +134,22 @@
                   <el-input v-model="form.article_content_rule" placeholder="form.article_content_rule"></el-input>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="submitForm('form')">提交</el-button>
+                  <el-button type="primary" @click="submitForm('form')">测试</el-button>
                   <el-button @click="resetForm('form')">重置</el-button>
-                  <el-button type="danger" round @click="editForm" size="small">提交修改</el-button>
+                  <el-button style="margin-left: 75px" type="danger" round @click="editForm" size="small">提交修改</el-button>
                 </el-form-item>
               </el-form>
             </div>
           </div>
         </el-main>
-        <el-aside width="400px">
-          Aside
+        <el-aside width="50%">
+          <div class="vertical-container">
+            <el-card class="card">
+              <div v-for="item in res_form" :key="item.key" style="padding: 10px 0">
+               {{ item.name }}: {{ item.val }}
+              </div>
+            </el-card>
+          </div>
         </el-aside>
       </el-container>
     </el-contaienr>
@@ -129,12 +162,24 @@
       return {
         form: {
           'company': '',
+          'domain': '',
           'category': [{
             'name': '',
             'url': '',
           }],
+          'condition': 0,
           'isDirect': false,
+          'article_url_rule': '',
+          'article_middle_url_rule': '',
+          'article_query_rule': '',
+          'article_title_rule': '',
+          'article_author_rule': '',
+          'article_publish_time_rule': '',
+          'article_content_rule': '',
         },
+        res_form: {
+
+        }
       };
     },
     created: function () {
@@ -156,19 +201,68 @@
             }
           )
       },
-      editForm() {},
-      removeCategory(item) {
-        var index = this.form.category.indexOf(item)
-        if (index !== -1) {
-          this.form.category.splice(index, 1)
-        }
+
+      editForm() {
+        this.$confirm('确认修改?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          // todo post修改数据
+          this.$message({
+            type: 'success',
+            message: '修改成功!'
+          });
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消修改'
+          });          
+        });
       },
+
+      testForm() {
+        axios.post('/api/test')
+          .then(
+            response => {
+              this.res_form = response.data
+            }
+          )
+          .catch(
+            error => {
+              console.log()
+            }
+          )
+      },
+
+      removeCategory(item) {
+        this.$confirm('确认删除?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          var index = this.form.category.indexOf(item)
+          if (index !== -1) {
+            this.form.category.splice(index, 1)
+          }
+          this.$message({
+            type: 'success',
+            message: '删除成功!'
+          });
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消删除'
+          });          
+        });
+      },
+
       addCategory() {
         this.form.category.push({
           'name': '',
           'url': '',
         });
-      }
+      },
     }
   })
 </script>
