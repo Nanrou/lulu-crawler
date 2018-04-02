@@ -27,9 +27,13 @@
 
     .card { 
       display: block;
-      width: 480px;
+      width: 80%;
       height: 800px;
       padding: 18px 10px;
+    }
+
+    .mask {
+      filter: blur(2px)
     }
 
     hr {
@@ -49,7 +53,42 @@
 
       </el-header>
       <el-container>
-        <el-main>
+        <el-aside width="20%">
+            <el-card style="margin-left: 10%; margin-top: 20px;">
+              <div>
+                <strong>&nbsp; 选择操作模式</strong>
+                <el-radio-group v-model="mode" style="margin-top: 16px">
+                    <el-radio-button label="append">新增模式</el-radio-button>
+                    <el-radio-button label="edit">编辑模式</el-radio-button>
+                  </el-radio-group>
+              </div>
+              <div style="margin-top: 20px" v-if="mode == 'edit'">
+                <el-table
+                  :data="companyTable"
+                  highlight-current-row
+                  stripe
+                  border
+                  @row-click="handleTableCurrentChange"
+                  style="width: 100%">
+                  <el-table-column
+                    type="index"
+                    width="50px">
+                  </el-table-column>
+                  <el-table-column
+                    label="公司名称"
+                    prop="name">
+                    <template slot-scope="scope">
+                      <span style="float: left;">{{ scope.row.name }}</span>
+                    </template>
+                  </el-table-column>  
+                </el-table>
+              </div>
+              <div v-else-if="mode == 'append'">
+                append
+            </div>
+            </el-card>
+        </el-aside>
+        <el-main v-bind:class="{mask: !mode}">
           <div class="vertical-container">
             <div class="form">
               <el-form :model="form" ref="form" label-width="125px">
@@ -136,13 +175,14 @@
                 <el-form-item>
                   <el-button type="primary" @click="submitForm('form')">测试</el-button>
                   <el-button @click="resetForm('form')">重置</el-button>
-                  <el-button style="margin-left: 75px" type="danger" round @click="editForm" size="small">提交修改</el-button>
+                  <el-button v-if="mode == 'edit'" style="margin-left: 75px" type="danger" round @click="editForm" size="small">提交修改</el-button>
+                  <el-button v-else-if="mode == 'append'" style="margin-left: 75px" type="danger" round @click="editForm" size="small">新增记录</el-button>
                 </el-form-item>
               </el-form>
             </div>
           </div>
         </el-main>
-        <el-aside width="50%">
+        <el-aside v-bind:class="{mask: !mode}" width="40%">
           <div class="vertical-container">
             <el-card class="card">
               <div v-for="item in res_form" :key="item.key" style="padding: 10px 0">
@@ -160,6 +200,7 @@
     el: '#app',
     data: function () {
       return {
+        mode: '',
         form: {
           'company': '',
           'domain': '',
@@ -177,6 +218,11 @@
           'article_publish_time_rule': '',
           'article_content_rule': '',
         },
+        companyTable: [
+          {'name': 'aaa'},
+          {'name': 'bbb'},
+        ],
+        currentRow: null,
         res_form: {
 
         }
@@ -262,6 +308,10 @@
           'name': '',
           'url': '',
         });
+      },
+
+      handleTableCurrentChange(row, event, column) {
+        console.log(row.name)
       },
     }
   })
