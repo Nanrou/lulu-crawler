@@ -71,6 +71,26 @@ def init_redis():  # 根据第一次抓取去初始化布隆过滤器
         BloomFilter.insert(''.join([article.url, article.title]))
 
 
+def test_crawl(item):  # 接受B端过来的数据
+    item_class = AjaxItem if item['condition'] else StaticItem
+    sample = item_class(
+        url=item['url'],
+        detail={
+            'article_url_rule': item['article_url_rule'],
+            'article_middle_url_rule': item['article_middle_url_rule'],
+            'article_query_url': item['article_query_url'],
+            'article_title_rule': item['article_title_rule'],
+            'article_author_rule': item['article_author_rule'],
+            'article_publish_time_rule': item['article_publish_time_rule'],
+            'article_content_rule': item['article_content_rule'],
+        },
+        is_direct=item['is_direct'],
+    )
+    cc = Crawler(sample, debug=True)
+    return cc.test_crawl()[0]
+
+
 if __name__ == '__main__':
-    first_crawl()
+    # first_crawl()
     # init_redis()
+    pass

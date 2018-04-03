@@ -2,7 +2,7 @@ import random
 
 from redis import Redis
 
-from apistar import Include, Route, Response, http, Component
+from apistar import Include, Route, Response, http, Component, annotate
 from apistar.frameworks.wsgi import WSGIApp as App
 from apistar.handlers import docs_urls, static_urls
 from apistar.interfaces import SessionStore
@@ -15,10 +15,16 @@ import os
 PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, PROJECT_DIR)
 
-from db.orm import UserTable
+from db.orm import UserTable, CompanyTable, CategoryTable
+from lulu.core_logic import test_crawl
 
 REDIS_DB = Redis()
 
+
+################
+# TODO 使用auth验证
+#
+################
 
 # 仿写内置的store
 class RedisSessionStore(SessionStore):
@@ -53,10 +59,26 @@ class RedisSessionStore(SessionStore):
         return ''.join(urandom.choice(allowed_chars) for _ in range(length))
 
 
-def welcome(name=None):
-    if name is None:
-        return {'message': 'Welcome to API Star!'}
-    return {'message': 'Welcome to API Star, %s!' % name}
+# 仿写的session，因为不知道为什么模块的前端没有自动将bytes转换成unicode
+class MySession(http.Session):
+    def __getitem__(self, key: str):
+        try:
+            return self.data[key]
+        except KeyError:
+            return self.data[bytes(key)]
+
+    def __contains__(self, key: str):
+        return key in self.data or bytes(key) in self.data
+
+
+# 权限验证
+class IsLogIn:
+    @staticmethod
+    def has_permission(session: http.Session):
+        if ('user' in session or b'user' in session) and REDIS_DB.exists(session.session_id):
+            return True
+        else:
+            return False
 
 
 def login(data: http.RequestData, session: http.Session):
@@ -73,9 +95,13 @@ def login(data: http.RequestData, session: http.Session):
 
 
 def logout(session: http.Session):
-    if 'username' in session:
-        del session['username']
-    return Response(status=302, headers={'location': '/login'})
+    if 'user' in session:
+        del session['user']
+    if b'user' in session:
+        del session[b'user']
+    if REDIS_DB.exists(session.session_id):
+        REDIS_DB.delete(session.session_id)
+    return {'status': 'success'}
 
 
 def console(request: http.Request, session: http.Session):
@@ -88,17 +114,71 @@ def console(request: http.Request, session: http.Session):
 
 
 def check_log_in(session: http.Session):
-    if REDIS_DB.exists(session.session_id):
+    if ('user' in session or b'user' in session) and REDIS_DB.exists(session.session_id):
         return {'status': 'success'}
     else:
         return {'status': 'fail'}
 
 
+@annotate(permissions=[IsLogIn()])
+def get_all_company():
+    res = []
+    for company in CompanyTable.select(CompanyTable.name):
+        res.append({'name': company.name})
+    return res
+
+
+@annotate(permissions=[IsLogIn()])
+def get_company(company):
+    try:
+        _company = CompanyTable.get(CompanyTable.name == company)
+        categories = CategoryTable.select().where(CategoryTable.company_name == _company.name)
+        cate_list = []
+        for category in categories:
+            cate_list.append({
+                'name': category.name,
+                'url': category.url
+            })
+        res = {
+            'company': _company.name,
+            'domain': _company.domain,
+            'category': cate_list,
+            'condition': categories[0].condition,
+            'is_direct': categories[0].is_direct,
+            'article_url_rule': categories[0].article_url_rule,
+            'article_middle_url_rule': categories[0].article_middle_url_rule,
+            'article_query_url': categories[0].article_query_url,
+            'article_title_rule': categories[0].article_title_rule,
+            'article_author_rule': categories[0].article_author_rule,
+            'article_publish_time_rule': categories[0].article_publish_time_rule,
+            'article_content_rule': categories[0].article_content_rule,
+        }
+        return {'status': 'success', 'form': res}
+    except DoesNotExist:
+        return {'status': 'fail'}
+
+
+@annotate(permissions=[IsLogIn()])
+def test_form(data: http.RequestData):
+    data['url'] = data.get('category')[random.randrange(len(data.get('category')))]['url']  # 随意取一个栏目去爬取
+    try:
+        return {'status': 'success', 'res': test_crawl(data)}
+    except IndexError:
+        return {'status': 'fail'}
+
+
+@annotate(permissions=[IsLogIn()])
+def submit_edit(data: http.RequestData):
+    print(data)
+
+
 routes = [
-    Route('/', 'GET', welcome),
     Route('/api/checkLogIn', 'GET', check_log_in),
     Route('/api/login', 'POST', login),
-    Route('/api/console', 'POST', console),
+    Route('/api/logout', 'GET', logout),
+    Route('/api/get_all_company', 'GET', get_all_company),
+    Route('/api/get_company', 'GET', get_company),
+    Route('/api/test', 'POST', test_form),
     Include('/docs', docs_urls),
     Include('/statics', static_urls)
 ]

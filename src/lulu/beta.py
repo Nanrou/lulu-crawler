@@ -1,9 +1,11 @@
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 import json
 from urllib.parse import urlparse, urlunparse
 
 from lxml import etree
+from html2text import HTML2Text
 import requests
 
 from logger import MyLogger
@@ -32,6 +34,12 @@ UrlDetail = namedtuple('UrlDetail', ['url', 'detail'])  # url是网址，detail�
 LOGGER = MyLogger(__file__)
 BloomFilter = MyBloomFilter()
 
+TextMaker = HTML2Text()
+TextMaker.ignore_links = True
+TextMaker.ignore_images = True
+TextMaker.ignore_tables = True
+TextMaker.single_line_break = True
+
 
 class Item:
     """ 分类页的任务单位 """
@@ -54,7 +62,7 @@ class AjaxItem(Item):
 
 
 class Crawler:
-    def __init__(self, items):
+    def __init__(self, items, debug=False):
         if not isinstance(items, list):
             items = [items]
         self.items = items
@@ -62,6 +70,7 @@ class Crawler:
             'StaticItem': self._scrape_static_core,
             'AjaxItem': self._scrap_ajax_core,
         }
+        self.debug = debug
 
     def _scrap(self):
         res = {}
@@ -118,8 +127,11 @@ class Crawler:
 
             url_details = [(UrlDetail(query_url.format(k), url_detail.detail), v)
                            for k, v in param_cookies_mapper.items() if v]  # 每个文章有自己的sessionID/cookie
-
-        filter_url_details = [u for u in url_details if not BloomFilter.is_contain(u[0].url)]  # 过滤
+        # 过滤
+        if self.debug:
+            filter_url_details = [u for u in url_details]
+        else:
+            filter_url_details = [u for u in url_details if not BloomFilter.is_contain(u[0].url)]
 
         with requests.Session() as session:  # 后面改成协程
             session.headers.update(HEADER)
@@ -131,12 +143,13 @@ class Crawler:
                     _u = url_mapper[future]
                     try:
                         res.append(future.result())
+                        if not self.debug:
+                            BloomFilter.insert(_u[0].url)
                     except Exception as exc:
                         LOGGER.warning(('获取content_json失败 ', _u, exc))
         return res
 
-    @staticmethod
-    def _fetch_json_static(json_, url_detail):
+    def _fetch_json_static(self, json_, url_detail):
         if not isinstance(json_, list):  # 适配单个的情况
             json_ = [json_]
         res = []
@@ -159,11 +172,14 @@ class Crawler:
             if fail_time > 3:
                 LOGGER.warning('提取数据失败 {}的第{}项'.format(url_detail.url, index))
             else:  # 过滤判断
-                if BloomFilter.is_contain(''.join([url_detail.url, scrape_res['article_title_rule']])):
-                    continue
-                else:
+                if self.debug:
                     res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
-                    BloomFilter.insert(''.join([url_detail.url, scrape_res['article_title_rule']]))
+                else:
+                    if BloomFilter.is_contain(''.join([url_detail.url, scrape_res['article_title_rule']])):
+                        continue
+                    else:
+                        res.append(UrlDetail(url=url_detail.url, detail=scrape_res))
+                        BloomFilter.insert(''.join([url_detail.url, scrape_res['article_title_rule']]))
         return res
 
     @staticmethod
@@ -214,6 +230,27 @@ class Crawler:
 
     def first_crawl(self):
         return self._scrap()
+
+    def test_crawl(self):
+        res = []
+        for k, v in self._scrap().items():
+            if not v:
+                continue
+            for single_url in v:
+                single_part = dict(
+                    url=single_url.url,
+
+                    title=TextMaker.handle(single_url.detail['article_title_rule'])
+                    if single_url.detail['article_title_rule'] else None,
+                    author=TextMaker.handle(single_url.detail['article_author_rule'])
+                    if single_url.detail['article_author_rule'] else None,
+                    publish_time=TextMaker.handle(single_url.detail['article_publish_time_rule'])
+                    if single_url.detail['article_publish_time_rule'] else datetime.now(),
+                    content=TextMaker.handle(single_url.detail['article_content_rule'])
+                    if single_url.detail['article_content_rule'] else None,
+                )
+                res.append(single_part)
+        return res
 
 
 if __name__ == '__main__':

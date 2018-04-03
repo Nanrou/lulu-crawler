@@ -2,7 +2,7 @@ from datetime import datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from peewee import MySQLDatabase, SqliteDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
-    TextField, ForeignKeyField
+    TextField
 
 MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='nanrou',
                          host='127.0.0.1', port=3306)
@@ -51,7 +51,7 @@ class CategoryTable(BaseModel):
     article_content_rule = CharField(max_length=255, null=False)
 
     # company_name = ForeignKeyField(CompanyTable, backref='category')
-    company_name = CharField(max_length=255, null=False)
+    company_name = CharField(max_length=255, null=False, index=True)
 
     # is_deleted = BooleanField(default=False)
     # remark = CharField(null=True)

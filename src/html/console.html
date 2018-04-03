@@ -49,18 +49,20 @@
 <body>
   <div id="app">
     <el-container>
-      <el-header>
-
+      <el-header style="text-align: right; font-size: 12px">
+        <el-button @click="logOut" style="margin-right: 30px" type="primary">登出</el-button>
       </el-header>
       <el-container>
-        <el-aside width="20%">
+        <el-aside width="25%">
             <el-card style="margin-left: 10%; margin-top: 20px;">
               <div>
                 <strong>&nbsp; 选择操作模式</strong>
+                <div>
                 <el-radio-group v-model="mode" style="margin-top: 16px">
                     <el-radio-button label="append">新增模式</el-radio-button>
                     <el-radio-button label="edit">编辑模式</el-radio-button>
                   </el-radio-group>
+                </div>
               </div>
               <div style="margin-top: 20px" v-if="mode == 'edit'">
                 <el-table
@@ -68,7 +70,7 @@
                   highlight-current-row
                   stripe
                   border
-                  @row-click="handleTableCurrentChange"
+                  @row-click="handleTableCurrentRow"
                   style="width: 100%">
                   <el-table-column
                     type="index"
@@ -129,13 +131,13 @@
                     <el-option label="1" value="1"></el-option>
                   </el-select>
                 </el-form-item>
-                <el-form-item label="Directly" prop="isDirect">
-                  <el-switch v-model="form.isDirect" placeholder="form.isDirect"></el-switch>
+                <el-form-item label="Directly" prop="is_direct">
+                  <el-switch v-model="form.is_direct" placeholder="form.is_direct"></el-switch>
                 </el-form-item>
                 <hr/>
                 <div v-if="form.condition == 1">
                   <el-form-item
-                    :label="JSON地址规则"
+                    label="JSON地址规则"
                     :rules="{
                       required: true, message: 'JSON地址规则不能为空', trigger: 'blur'
                     }"
@@ -144,7 +146,7 @@
                   </el-form-item>
                   <el-form-item 
                     v-if="!form.isDirect" 
-                    :label="文章页面地址"
+                    label="文章页面地址"
                     :rules="{
                       required: true, message: '文章页面地址不能为空', trigger: 'blur'
                     }"
@@ -152,12 +154,12 @@
                     <el-input v-model="form.article_middle_url_rule" placeholder="form.article_middle_url_rule"></el-input>
                   </el-form-item>
                   <el-form-item 
-                    :label="文章查询地址"
+                    label="文章查询地址"
                     :rules="{
                       required: true, message: '文章查询地址不能为空', trigger: 'blur'
                     }"
                   >
-                    <el-input v-model="form.article_query_rule" placeholder="form.article_query_rule"></el-input>
+                    <el-input v-model="form.article_query_url" placeholder="form.article_query_url"></el-input>
                   </el-form-item>
                 </div>
                 <el-form-item label="文章标题规则">
@@ -173,10 +175,10 @@
                   <el-input v-model="form.article_content_rule" placeholder="form.article_content_rule"></el-input>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="submitForm('form')">测试</el-button>
-                  <el-button @click="resetForm('form')">重置</el-button>
-                  <el-button v-if="mode == 'edit'" style="margin-left: 75px" type="danger" round @click="editForm" size="small">提交修改</el-button>
-                  <el-button v-else-if="mode == 'append'" style="margin-left: 75px" type="danger" round @click="editForm" size="small">新增记录</el-button>
+                  <el-button type="primary" @click="testForm">测试</el-button>
+                  <el-button @click="resetForm">重置</el-button>
+                  <el-button v-if="mode == 'edit'" style="margin-left: 75px" type="danger" round @click="submitEdit" size="small">提交修改</el-button>
+                  <el-button v-else-if="mode == 'append'" style="margin-left: 75px" type="danger" round @click="submitAppend" size="small">新增记录</el-button>
                 </el-form-item>
               </el-form>
             </div>
@@ -185,8 +187,8 @@
         <el-aside v-bind:class="{mask: !mode}" width="40%">
           <div class="vertical-container">
             <el-card class="card">
-              <div v-for="item in res_form" :key="item.key" style="padding: 10px 0">
-               {{ item.name }}: {{ item.val }}
+              <div v-for="(v, k) in res_form" :key="k.key" style="padding: 10px 0">
+               {{ k }}: {{ v }}
               </div>
             </el-card>
           </div>
@@ -201,6 +203,7 @@
     data: function () {
       return {
         mode: '',
+        needMaskEdit: true,
         form: {
           'company': '',
           'domain': '',
@@ -209,20 +212,17 @@
             'url': '',
           }],
           'condition': 0,
-          'isDirect': false,
+          'is_direct': false,
           'article_url_rule': '',
           'article_middle_url_rule': '',
-          'article_query_rule': '',
+          'article_query_url': '',
           'article_title_rule': '',
           'article_author_rule': '',
           'article_publish_time_rule': '',
           'article_content_rule': '',
         },
-        companyTable: [
-          {'name': 'aaa'},
-          {'name': 'bbb'},
-        ],
-        currentRow: null,
+        companyTable: [],
+        currentCompany: '',
         res_form: {
 
         }
@@ -231,6 +231,10 @@
     created: function () {
       this.checkLogIn();
     },
+    mounted: function() {
+      this.getAllCompany();
+    },
+
     methods: {
       checkLogIn() {
         axios.get('/api/checkLogIn')
@@ -248,7 +252,27 @@
           )
       },
 
-      editForm() {
+      getAllCompany() {
+        axios.get('/api/get_all_company')
+          .then(
+            response => {
+              this.companyTable = response.data
+            }
+          )
+      },
+
+      logOut() {
+        axios.get('/api/logout')
+          .then(
+            window.location.href = '/login'
+          )
+      },
+
+      submitAppend() {
+
+      },
+
+      submitEdit() {
         this.$confirm('确认修改?', '提示', {
           confirmButtonText: '确定',
           cancelButtonText: '取消',
@@ -268,17 +292,47 @@
       },
 
       testForm() {
-        axios.post('/api/test')
+        let res = {}
+        for (item in this.form) {
+          res[item] = this.form[item]
+        }
+        axios.post('/api/test', data=res)
           .then(
             response => {
-              this.res_form = response.data
+              if (response.data.status == 'success') {
+                this.res_form = response.data['res']
+              }
             }
           )
           .catch(
             error => {
-              console.log()
+              console.log(error)
             }
           )
+      },
+
+      resetForm() {
+        this.$confirm('确认重置表单?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          axios.get('/api/get_company?company=' + this.currentCompany)
+            .then(
+              response => {
+                this.form = response.data['form']
+              }
+            )
+          this.$message({
+            type: 'success',
+            message: '重置成功!'
+          });
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消重置'
+          });          
+        });
       },
 
       removeCategory(item) {
@@ -310,8 +364,15 @@
         });
       },
 
-      handleTableCurrentChange(row, event, column) {
-        console.log(row.name)
+      handleTableCurrentRow(row, event, column) {
+        this.currentCompany = row.name
+        axios.get('/api/get_company?company=' + this.currentCompany)
+          .then(
+            response => {
+              this.form = response.data['form']
+            }
+          )
+
       },
     }
   })
