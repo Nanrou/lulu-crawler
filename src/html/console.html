@@ -59,8 +59,12 @@
                 <strong>&nbsp; 选择操作模式</strong>
                 <div>
                 <el-radio-group v-model="mode" style="margin-top: 16px">
-                    <el-radio-button label="append">新增模式</el-radio-button>
-                    <el-radio-button label="edit">编辑模式</el-radio-button>
+                    <el-tooltip style="margin: 4px" effect="dark" content="新增公司" placement="top-start">
+                      <el-radio-button label="append">新增模式</el-radio-button>
+                    </el-tooltip>
+                    <el-tooltip style="margin: 4px" effect="dark" content="更改现有的" placement="top-start">
+                      <el-radio-button label="edit">编辑模式</el-radio-button>
+                    </el-tooltip>
                   </el-radio-group>
                 </div>
               </div>
@@ -86,8 +90,21 @@
                 </el-table>
               </div>
               <div v-else-if="mode == 'append'">
-                append
-            </div>
+                <div>
+                  <p>关于<strong>分类</strong></p>
+                  <ul>
+                    <li>0: 意味着</li>
+                    <li>1: 意味着</li>
+                  </ul>
+                </div>
+                <div>
+                  <p>关于<strong>Directly</strong></p>
+                  <ul>
+                    <li>True: 意味着</li>
+                    <li>Faluse: 意味着</li>
+                  </ul>
+                </div>
+              </div> 
             </el-card>
         </el-aside>
         <el-main v-bind:class="{mask: !mode}">
@@ -95,10 +112,10 @@
             <div class="form">
               <el-form :model="form" ref="form" label-width="125px">
                 <el-form-item label="公司名称">
-                  <el-input v-model="form.company" placeholder="form.company"></el-input>
+                  <el-input v-model="form.company" placeholder="form.company" :disabled="mode == 'edit'"></el-input>
                 </el-form-item>
                 <el-form-item label="公司主页">
-                  <el-input v-model="form.domain" placeholder="form.domain"></el-input>
+                  <el-input v-model="form.domain" placeholder="form.domain" :disabled="mode == 'edit'"></el-input>
                 </el-form-item>
                 <hr/>
                 <div>
@@ -145,7 +162,7 @@
                     <el-input v-model="form.article_url_rule" placeholder="form.article_url_rule"></el-input>
                   </el-form-item>
                   <el-form-item 
-                    v-if="!form.isDirect" 
+                    v-if="!form.is_direct" 
                     label="文章页面地址"
                     :rules="{
                       required: true, message: '文章页面地址不能为空', trigger: 'blur'
@@ -175,10 +192,10 @@
                   <el-input v-model="form.article_content_rule" placeholder="form.article_content_rule"></el-input>
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="testForm">测试</el-button>
+                  <el-button type="primary" @click="testForm" :loading="testLoading">测试</el-button>
                   <el-button @click="resetForm">重置</el-button>
-                  <el-button v-if="mode == 'edit'" style="margin-left: 75px" type="danger" round @click="submitEdit" size="small">提交修改</el-button>
-                  <el-button v-else-if="mode == 'append'" style="margin-left: 75px" type="danger" round @click="submitAppend" size="small">新增记录</el-button>
+                  <el-button v-if="mode == 'edit'" style="margin-left: 55px" type="danger" round @click="submitEdit" size="small">提交修改</el-button>
+                  <el-button v-else-if="mode == 'append'" style="margin-left: 55px" type="danger" round @click="submitAppend" size="small">新增记录</el-button>
                 </el-form-item>
               </el-form>
             </div>
@@ -187,7 +204,7 @@
         <el-aside v-bind:class="{mask: !mode}" width="40%">
           <div class="vertical-container">
             <el-card class="card">
-              <div v-for="(v, k) in res_form" :key="k.key" style="padding: 10px 0">
+              <div v-for="(v, k) in res_form" :key="k.key" style="padding: 10px 0; overflow: auto">
                {{ k }}: {{ v }}
               </div>
             </el-card>
@@ -223,9 +240,8 @@
         },
         companyTable: [],
         currentCompany: '',
-        res_form: {
-
-        }
+        res_form: {},
+        testLoading: false,
       };
     },
     created: function () {
@@ -269,7 +285,54 @@
       },
 
       submitAppend() {
+        this.$confirm('确认新增?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          let res = {}
+          for (item in this.form) {
+            res[item] = this.form[item]
+          }
+          axios.post('/api/append', data=res)
+            .then(
+              response => {
+                if (response.data.status == 'success') {
+                  this.res_form = response.data['res']
+                  this.res_form = {
+                    'status': 'success'
+                  }
+                } else if(response.data.status == 'duplication') {
+                  this.res_form = {
+                    'status': '请使用编辑模式'
+                  }
+                } else if(response.data.status == 'fail') {
+                  this.res_form = {
+                    'status': '未知错误'
+                  }
+                }
+              }
+            )
+            .catch(
+              error => {
+                this.res_form = {
+                  'status': 'false'
+                }
+                console.log(error)
+              }
+            )
 
+          // todo 等待
+          this.$message({
+            type: 'success',
+            message: '修改成功!'
+          });
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消修改'
+          });          
+        });
       },
 
       submitEdit() {
@@ -278,7 +341,35 @@
           cancelButtonText: '取消',
           type: 'warning'
         }).then(() => {
-          // todo post修改数据
+          let res = {}
+          for (item in this.form) {
+            res[item] = this.form[item]
+          }
+          axios.post('/api/submit', data=res)
+            .then(
+              response => {
+                if (response.data.status == 'success') {
+                  this.res_form = response.data['res']
+                  this.res_form = {
+                    'status': 'success'
+                  }
+                } else {
+                  this.res_form = {
+                    'status': 'false'
+                  }
+                }
+              },
+            )
+            .catch(
+              error => {
+                this.res_form = {
+                  'status': 'false'
+                }
+                console.log(error)
+              }
+            )
+
+          // todo 等待
           this.$message({
             type: 'success',
             message: '修改成功!'
@@ -292,6 +383,9 @@
       },
 
       testForm() {
+        this.$nextTick(function() {
+          this.testLoading = true
+        });
         let res = {}
         for (item in this.form) {
           res[item] = this.form[item]
@@ -302,12 +396,17 @@
               if (response.data.status == 'success') {
                 this.res_form = response.data['res']
               }
-            }
+              this.testLoading = false
+            },
           )
           .catch(
             error => {
+              this.res_form = {
+                'status': 'false'
+              }
               console.log(error)
-            }
+              this.testLoading = false
+            },
           )
       },
 

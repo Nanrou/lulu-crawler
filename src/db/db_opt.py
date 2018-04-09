@@ -21,7 +21,6 @@ def input_json2db():
                 'url': cate['url'],
                 'condition': cate['condition'],
                 'is_direct': cate['is_direct'],
-                'is_json': cate['is_json'],
                 'article_url_rule': cate['article_url_rule'],
                 'article_middle_url_rule': cate['article_middle_url_rule'],
                 'article_query_url': cate['article_query_url'],

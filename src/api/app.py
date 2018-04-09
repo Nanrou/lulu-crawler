@@ -167,9 +167,63 @@ def test_form(data: http.RequestData):
         return {'status': 'fail'}
 
 
+# 暴力实现，全删了再新增进去
 @annotate(permissions=[IsLogIn()])
 def submit_edit(data: http.RequestData):
-    print(data)
+    try:
+        _company = data.get('company')
+        CategoryTable.delete().where(CategoryTable.company_name == _company).execute()
+        bulk_cate = []
+        for cate in data.get('category'):
+            bulk_cate.append({
+                'name': cate['name'],
+                'url': cate['url'],
+                'condition': cate['condition'],
+                'is_direct': cate['is_direct'],
+                'article_url_rule': cate['article_url_rule'],
+                'article_middle_url_rule': cate['article_middle_url_rule'],
+                'article_query_url': cate['article_query_url'],
+                'article_title_rule': cate['article_title_rule'],
+                'article_author_rule': cate['article_author_rule'],
+                'article_publish_time_rule': cate['article_publish_time_rule'],
+                'article_content_rule': cate['article_content_rule'],
+                'company_name': _company,
+            })
+        CategoryTable.insert_many(bulk_cate)
+        return {'status': 'success'}
+    except KeyError:
+        return {'status': 'fail'}
+
+
+@annotate(permissions=[IsLogIn()])
+def submit_append(data: http.RequestData):
+    try:
+        CompanyTable.get(CompanyTable.domain == data['domain'])
+        return {'status': 'duplication'}
+    except DoesNotExist:
+        CompanyTable.create(name=data['domain'], domain=data['domain'])  # 新建公司
+    try:
+        _company = data.get('company')
+        bulk_cate = []
+        for cate in data.get('category'):
+            bulk_cate.append({
+                'name': cate['name'],
+                'url': cate['url'],
+                'condition': cate['condition'],
+                'is_direct': cate['is_direct'],
+                'article_url_rule': cate['article_url_rule'],
+                'article_middle_url_rule': cate['article_middle_url_rule'],
+                'article_query_url': cate['article_query_url'],
+                'article_title_rule': cate['article_title_rule'],
+                'article_author_rule': cate['article_author_rule'],
+                'article_publish_time_rule': cate['article_publish_time_rule'],
+                'article_content_rule': cate['article_content_rule'],
+                'company_name': _company,
+            })
+        CategoryTable.insert_many(bulk_cate)
+        return {'status': 'success'}
+    except KeyError:
+        return {'status': 'fail'}
 
 
 routes = [
@@ -179,6 +233,8 @@ routes = [
     Route('/api/get_all_company', 'GET', get_all_company),
     Route('/api/get_company', 'GET', get_company),
     Route('/api/test', 'POST', test_form),
+    Route('/api/submit', 'POST', submit_edit),
+    Route('/api/append', 'POST', submit_append),
     Include('/docs', docs_urls),
     Include('/statics', static_urls)
 ]
