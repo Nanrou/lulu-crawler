@@ -59,10 +59,10 @@
                 <strong>&nbsp; 选择操作模式</strong>
                 <div>
                 <el-radio-group v-model="mode" style="margin-top: 16px">
-                    <el-tooltip style="margin: 4px" effect="dark" content="新增公司" placement="top-start">
+                    <el-tooltip effect="dark" content="新增公司" placement="top-start">
                       <el-radio-button label="append">新增模式</el-radio-button>
                     </el-tooltip>
-                    <el-tooltip style="margin: 4px" effect="dark" content="更改现有的" placement="top-start">
+                    <el-tooltip effect="dark" content="更改现有的" placement="top-start">
                       <el-radio-button label="edit">编辑模式</el-radio-button>
                     </el-tooltip>
                   </el-radio-group>
@@ -93,15 +93,15 @@
                 <div>
                   <p>关于<strong>分类</strong></p>
                   <ul>
-                    <li>0: 意味着</li>
-                    <li>1: 意味着</li>
+                    <li>0: 直接在栏目页就可以拿到所有数据(较为少见)</li>
+                    <li>1: 从栏目页获得参数，然后构造url再去请求文章页面</li>
                   </ul>
                 </div>
                 <div>
                   <p>关于<strong>Directly</strong></p>
                   <ul>
-                    <li>True: 意味着</li>
-                    <li>Faluse: 意味着</li>
+                    <li>True: 可以通过上一步得到的url直接得到文章内容</li>
+                    <li>Faluse: 先访问上一步得到的url，然后再请求内容页来得到内容</li>
                   </ul>
                 </div>
               </div> 
