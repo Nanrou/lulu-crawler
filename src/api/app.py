@@ -15,7 +15,7 @@ import os
 PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, PROJECT_DIR)
 
-from db.orm import UserTable, CompanyTable, CategoryTable
+from db.orm import UserTable, CompanyTable, CategoryTable, ArticleTable
 from lulu.core_logic import test_crawl
 
 REDIS_DB = Redis()
@@ -226,6 +226,30 @@ def submit_append(data: http.RequestData):
         return {'status': 'fail'}
 
 
+# @annotate(permissions=[IsLogIn()])
+def get_article(company: str, limit: int = 10):
+    try:
+        articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(limit)
+        res = []
+        for article in articles:
+            res.append({
+                'url': article.url,
+                'title': article.title,
+                'author': article.author,
+                'publish_time': article.publish_time.strftime('%Y/%m/%d %H:%M:%S'),
+                'collected_time': article.collected_time.strftime('%Y/%m/%d %H:%M:%S'),
+                'content': article.content,
+                'company_name': article.company_name,
+                'category_name': article.category_name,
+            })
+        return res
+
+    except DoesNotExist:
+        return {'status': 'error'}
+
+
+# post到login，然后就可以拿数据了
+
 routes = [
     Route('/api/checkLogIn', 'GET', check_log_in),
     Route('/api/login', 'POST', login),
@@ -235,6 +259,7 @@ routes = [
     Route('/api/test', 'POST', test_form),
     Route('/api/submit', 'POST', submit_edit),
     Route('/api/append', 'POST', submit_append),
+    Route('/api/get_article', 'GET', get_article),
     Include('/docs', docs_urls),
     Include('/statics', static_urls)
 ]
