@@ -104,6 +104,7 @@ def logout(session: http.Session):
     return {'status': 'success'}
 
 
+# TODO: delete
 def console(request: http.Request, session: http.Session):
     if session.get('user'):
         return {
@@ -227,7 +228,7 @@ def submit_append(data: http.RequestData):
 
 
 # @annotate(permissions=[IsLogIn()])
-def get_article(company: str, limit: int = 10):
+def get_article(company: str, limit=10):
     try:
         articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(limit)
         res = []

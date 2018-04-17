@@ -19,7 +19,7 @@ BloomFilter = MyBloomFilter()
 def first_crawl():
     items = []
     url_company_category_mapper = dict()
-    for category in CategoryTable.select():
+    for category in CategoryTable.select().where(CategoryTable.id == 6):
         item_class = AjaxItem if category.condition else StaticItem
         items.append(
             item_class(
@@ -90,7 +90,11 @@ def test_crawl(item):  # 接受B端过来的数据
     return cc.test_crawl()[0]
 
 
+def daily_crawl():
+    first_crawl()
+
+
 if __name__ == '__main__':
     # first_crawl()
     # init_redis()
-    pass
+    daily_crawl()

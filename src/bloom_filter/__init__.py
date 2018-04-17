@@ -77,11 +77,16 @@ class MyBloomFilter(BloomFilter):
 
 
 if __name__ == '__main__':
-    bf = BloomFilter()
-    s1 = 'https://bing.com'
-    s2 = 'https://google.com'
-    s3 = 'http://google.com'
-    for s in [s1, s2]:
-        bf.insert(s)
-    for s in [s1, s2, s3]:
-        print(bf.is_contain(s))
+    # bf = BloomFilter()
+    bf = MyBloomFilter()
+    bb = ' http://www.bdc.cn/biz200/mh204XwdtAction!getNewsContent.act?viewObj.newsId=8a82804d6187a83f01618e7cbae426c9'
+    print(bf.is_contain(bb))
+    # bf.insert(bb)
+    # print(bf.is_contain(bb))
+    # s1 = 'https://bing.com'
+    # s2 = 'https://google.com'
+    # s3 = 'http://google.com'
+    # for s in [s1, s2]:
+    #     bf.insert(s)
+    # for s in [s1, s2, s3]:
+    #     print(bf.is_contain(s))

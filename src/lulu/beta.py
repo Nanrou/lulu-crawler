@@ -62,7 +62,7 @@ class AjaxItem(Item):
 
 
 class Crawler:
-    def __init__(self, items, debug=False):
+    def __init__(self, items, debug: bool=False):
         if not isinstance(items, list):
             items = [items]
         self.items = items
@@ -87,6 +87,13 @@ class Crawler:
                     LOGGER.warning('超过重试次数 {}'.format(_u))
                 except Exception as exc:
                     LOGGER.warning((_u, '最外层: ', exc))
+
+        # 统计
+        _count = 0
+        for k, v in res.items():
+            _count += len(v)
+        LOGGER.info('本次爬取新增[{}]条记录'.format(_count))
+
         return res  # {'url1': [urlDetail(url1-1, {key: value})], ...}
 
     def _scrape_static_core(self, url_detail):  # 只处理普通的json式数据
@@ -144,9 +151,9 @@ class Crawler:
                     try:
                         res.append(future.result())
                         if not self.debug:
-                            BloomFilter.insert(_u[0].url)
+                            BloomFilter.insert(_u.url)
                     except Exception as exc:
-                        LOGGER.warning(('获取content_json失败 ', _u, exc))
+                        LOGGER.warning(('获取content_json失败 ', _u.url, exc))
         return res
 
     def _fetch_json_static(self, json_, url_detail):
@@ -228,9 +235,14 @@ class Crawler:
         else:
             raise OutTryException
 
+    # TODO: rename to crawl
     def first_crawl(self):
         return self._scrap()
 
+    def crawl(self):
+        return self._scrap()
+
+    # 单次测试爬取
     def test_crawl(self):
         res = []
         for k, v in self._scrap().items():
