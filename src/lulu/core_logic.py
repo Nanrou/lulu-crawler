@@ -2,7 +2,7 @@ from datetime import datetime
 
 from html2text import HTML2Text
 
-from lulu.alpha import Crawler, StaticItem, AjaxItem
+from lulu.alpha import Crawler, StaticItem, AjaxItem, HeadlessItem
 from lulu.beta import Crawler
 from db.orm import CategoryTable, ArticleTable, MYSQL_DB
 from bloom_filter import MyBloomFilter
@@ -15,12 +15,18 @@ TextMaker.single_line_break = True
 
 BloomFilter = MyBloomFilter()
 
+ConditionMapper = {
+    0: StaticItem,
+    1: AjaxItem,
+    2: HeadlessItem
+}
+
 
 def first_crawl():
     items = []
     url_company_category_mapper = dict()
     for category in CategoryTable.select():
-        item_class = AjaxItem if category.condition else StaticItem
+        item_class = ConditionMapper[CategoryTable.condition]
         items.append(
             item_class(
                 url=category.url,
@@ -73,7 +79,7 @@ def init_redis():  # 根据第一次抓取去初始化布隆过滤器
 
 
 def test_crawl(item):  # 接受B端过来的数据
-    item_class = AjaxItem if item['condition'] else StaticItem
+    item_class = ConditionMapper[item['condition']]
     sample = item_class(
         url=item['url'],
         detail={
@@ -99,9 +105,10 @@ def daily_crawl():
 if __name__ == '__main__':
     # first_crawl()
     # init_redis()
-    daily_crawl()
-    # import json
-    # with open('../db/test.json') as rf:
-    #     jj = json.load(rf)
-    #     ii = jj['category'][0]
-    #     test_crawl(ii)
+    # daily_crawl()
+    import json
+
+    with open('../db/test.json') as rf:
+        jj = json.load(rf)
+        ii = jj['category'][0]
+        print(test_crawl(ii))

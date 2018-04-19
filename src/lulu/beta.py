@@ -6,6 +6,7 @@ from urllib.parse import urlparse, urlunparse
 
 from lxml import etree
 from html2text import HTML2Text
+from selenium import webdriver
 import requests
 
 from logger import MyLogger
@@ -61,14 +62,19 @@ class AjaxItem(Item):
     """ condition 1，需要通过索引页拿到相关json数据，然后构造文章URL再去拿内容"""
 
 
+class HeadlessItem(Item):
+    """ condition 2，那些特别麻烦的，在栏目页就需要post拿数据的，直接用无头去拿到文章的url，再做分析"""
+
+
 class Crawler:
-    def __init__(self, items, debug: bool=False):
+    def __init__(self, items, debug: bool = False):
         if not isinstance(items, list):
             items = [items]
         self.items = items
         self.item_handle_mapper = {
             'StaticItem': self._scrape_static_core,
             'AjaxItem': self._scrap_ajax_core,
+            'HeadlessItem': self._scrape_headless_core,
         }
         self.debug = debug
 
@@ -241,6 +247,71 @@ class Crawler:
         else:
             raise OutTryException
 
+    # 暂时来讲，无头拿到的文章页，然后文章页就是静态的了
+    def _scrape_headless_core(self, url_detail):
+
+        url_detail.detail.pop('article_middle_url_rule')
+        url_detail.detail.pop('article_query_url')
+        url_detail.detail.pop('article_json_rule')
+
+        op = webdriver.FirefoxOptions()
+        op.add_argument('-headless')
+        browser = webdriver.Firefox(options=op)
+        browser.get(url_detail.url)
+        article_urls = [ele.get_attribute('href') for ele in
+                        browser.find_elements_by_xpath(url_detail.detail.pop('article_url_rule'))]
+        browser.close()
+
+        if self.debug:
+            article_urls = [u for u in article_urls if not BloomFilter.is_contain(u)]
+
+        url_details = [(UrlDetail(url, url_detail.detail), None) for url in article_urls]  # 将cookie也包到tuple中
+
+        with requests.Session() as session:  # 后面改成协程
+            session.headers.update(HEADER)
+            res = []
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                url_mapper = {executor.submit(self._thread_func_fetch_headless, session, *url_detail): url_detail[0]
+                              for url_detail in url_details}
+                for future in as_completed(url_mapper):
+                    _u = url_mapper[future]
+                    try:
+                        res.append(future.result())
+                        if not self.debug:
+                            BloomFilter.insert(_u.url)
+                    except Exception as exc:
+                        LOGGER.warning(('获取content_headless失败 ', _u.url, exc))
+        return res
+
+    @staticmethod
+    def _fetch_headless(content, url_detail):
+        body = etree.HTML(content)
+        scrape_res = {}
+        fail_time = 0
+        for k, v in url_detail.detail.items():
+            try:
+                if v is None:
+                    scrape_res[k] = None
+                    continue
+                _value = body.xpath(v)
+                if _value:
+                    scrape_res[k] = _value
+                else:
+                    scrape_res[k] = None
+                    LOGGER.info('{} 的 {} 部分规则有问题'.format(url_detail.url, k))
+                    fail_time += 1
+            except Exception as exc:  # 后面可以看一下需要捕捉什么异常
+                LOGGER.warning(('In ajax core json: ', exc))
+                fail_time += 1
+        if fail_time > 3:
+            LOGGER.warning('提取数据失败 {}'.format(url_detail.url))
+        else:
+            return UrlDetail(url=url_detail.url, detail=scrape_res)
+
+    def _thread_func_fetch_headless(self, session, url_detail, extra_cookie=None):
+        response = self._handle_request(url_detail.url, session, extra_cookie)
+        return self._fetch_headless(self.transform2utf8(response), url_detail)
+
     def crawl(self):
         return self._scrap()
 
@@ -265,6 +336,15 @@ class Crawler:
                 )
                 res.append(single_part)
         return res
+
+    @classmethod
+    def transform2utf8(cls, resp):
+        if resp.encoding == 'utf-8':
+            return resp.text
+        try:
+            return resp.content.decode('utf-8')  # 先猜文档本身是utf8，只是没从头部识别出来
+        except UnicodeDecodeError:
+            return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
 
 
 if __name__ == '__main__':
