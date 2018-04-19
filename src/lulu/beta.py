@@ -54,7 +54,7 @@ class Item:
 
 
 class StaticItem(Item):
-    """ condition 0，普通的前后端分离，可以直接拿到内容 """
+    """ condition 0，普通的前后端分离，在栏目页就可以直接拿到全部内容 """
 
 
 class AjaxItem(Item):
@@ -106,6 +106,8 @@ class Crawler:
         return self._fetch_json_static(response.json(), url_detail)  # 从json中提取数据
 
     def _scrap_ajax_core(self, url_detail):
+        url_detail.detail.pop('article_json_rule')  # 暂时直接在这里修改，删掉json rule
+
         category_response = self._handle_request(url_detail.url)
         # 通过索引页提取文章的参数
         article_params = eval(url_detail.detail.pop('article_url_rule').format('category_response.json()'))
@@ -157,6 +159,10 @@ class Crawler:
         return res
 
     def _fetch_json_static(self, json_, url_detail):
+        if url_detail.is_direct:
+            url_detail.detail.pop('article_json_rule')
+        else:
+            json_ = eval(url_detail.detail.pop('article_json_rule').format('json_'))
         if not isinstance(json_, list):  # 适配单个的情况
             json_ = [json_]
         res = []
@@ -234,10 +240,6 @@ class Crawler:
                 max_try_again_time -= 1
         else:
             raise OutTryException
-
-    # TODO: rename to crawl
-    def first_crawl(self):
-        return self._scrap()
 
     def crawl(self):
         return self._scrap()

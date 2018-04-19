@@ -19,7 +19,7 @@ BloomFilter = MyBloomFilter()
 def first_crawl():
     items = []
     url_company_category_mapper = dict()
-    for category in CategoryTable.select().where(CategoryTable.id == 6):
+    for category in CategoryTable.select():
         item_class = AjaxItem if category.condition else StaticItem
         items.append(
             item_class(
@@ -28,6 +28,7 @@ def first_crawl():
                     'article_url_rule': category.article_url_rule,
                     'article_middle_url_rule': category.article_middle_url_rule,
                     'article_query_url': category.article_query_url,
+                    'article_json_rule': category.article_json_rule,
                     'article_title_rule': category.article_title_rule,
                     'article_author_rule': category.article_author_rule,
                     'article_publish_time_rule': category.article_publish_time_rule,
@@ -40,7 +41,7 @@ def first_crawl():
         url_company_category_mapper[category.url] = [category.company_name, category.name]
 
     cc = Crawler(items)
-    for k, v in cc.first_crawl().items():
+    for k, v in cc.crawl().items():
         if not v:
             continue
         insert_list = []
@@ -79,6 +80,7 @@ def test_crawl(item):  # 接受B端过来的数据
             'article_url_rule': item['article_url_rule'],
             'article_middle_url_rule': item['article_middle_url_rule'],
             'article_query_url': item['article_query_url'],
+            'article_json_rule': item['article_json_rule'],
             'article_title_rule': item['article_title_rule'],
             'article_author_rule': item['article_author_rule'],
             'article_publish_time_rule': item['article_publish_time_rule'],
@@ -98,3 +100,8 @@ if __name__ == '__main__':
     # first_crawl()
     # init_redis()
     daily_crawl()
+    # import json
+    # with open('../db/test.json') as rf:
+    #     jj = json.load(rf)
+    #     ii = jj['category'][0]
+    #     test_crawl(ii)

@@ -179,6 +179,18 @@
                     <el-input v-model="form.article_query_url" placeholder="form.article_query_url"></el-input>
                   </el-form-item>
                 </div>
+                <div v-else>
+                  <div v-if="!form.is_direct">
+                    <el-form-item
+                      label="JSON解释规则"
+                      :rules="{
+                        required: true, message: 'JSON解释规则不能为空', trigger: 'blur'
+                      }"
+                    >
+                      <el-input v-model="form.article_json_rule" placeholder="form.article_json_rule"></el-input>
+                    </el-form-item>
+                  </div>
+                </div>
                 <el-form-item label="文章标题规则">
                   <el-input v-model="form.article_title_rule" placeholder="form.article_title_rule"></el-input>
                 </el-form-item>
@@ -233,6 +245,7 @@
           'article_url_rule': '',
           'article_middle_url_rule': '',
           'article_query_url': '',
+          'article_json_rule': '',
           'article_title_rule': '',
           'article_author_rule': '',
           'article_publish_time_rule': '',
@@ -448,6 +461,7 @@
             'article_url_rule': '',
             'article_middle_url_rule': '',
             'article_query_url': '',
+            'article_json_rule': '',
             'article_title_rule': '',
             'article_author_rule': '',
             'article_publish_time_rule': '',

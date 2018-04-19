@@ -44,6 +44,7 @@ class CategoryTable(BaseModel):
     article_url_rule = CharField(max_length=255, null=True, default=None)
     article_middle_url_rule = CharField(max_length=255, null=True, default=None)
     article_query_url = CharField(max_length=255, null=True, default=None)  # 构造查询文章的url
+    article_json_rule = CharField(max_length=255, null=True, default=None)  # 解析json的规则
 
     article_title_rule = CharField(max_length=255, null=False)
     article_author_rule = CharField(max_length=255, null=True)
