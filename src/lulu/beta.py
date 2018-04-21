@@ -168,7 +168,8 @@ class Crawler:
         if url_detail.is_direct:
             url_detail.detail.pop('article_json_rule')
         else:
-            json_ = eval(url_detail.detail.pop('article_json_rule').format('json_'))
+            rule = url_detail.detail.pop('article_json_rule')
+            json_ = eval(rule.format('json_'))
         if not isinstance(json_, list):  # 适配单个的情况
             json_ = [json_]
         res = []

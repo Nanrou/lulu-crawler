@@ -10,8 +10,8 @@ def create_tables():
     UserTable.create(username='root', password='123')
 
 
-def input_json2db():
-    with open('website2.json') as rf:
+def input_json2db(file):
+    with open(file) as rf:
         json_data = json.load(rf)
     for item in json_data:
         CompanyTable.create(domain=item['domain'], name=item['company'])
@@ -25,6 +25,7 @@ def input_json2db():
                 'article_url_rule': cate['article_url_rule'],
                 'article_middle_url_rule': cate['article_middle_url_rule'],
                 'article_query_url': cate['article_query_url'],
+                'article_json_rule': cate['article_json_rule'],
                 'article_title_rule': cate['article_title_rule'],
                 'article_author_rule': cate['article_author_rule'],
                 'article_publish_time_rule': cate['article_publish_time_rule'],
@@ -37,7 +38,7 @@ def input_json2db():
 
 
 if __name__ == '__main__':
-    # create_tables()
-    # input_json2db()
+    create_tables()
+    input_json2db('website2.json')
     # MYSQL_DB.create_tables([UserTable], safe=True)
     pass

@@ -48,7 +48,7 @@ class CategoryTable(BaseModel):
 
     article_title_rule = CharField(max_length=255, null=False)
     article_author_rule = CharField(max_length=255, null=True)
-    article_publish_time_rule = CharField(max_length=255, null=False)
+    article_publish_time_rule = CharField(max_length=255, null=True)
     article_content_rule = CharField(max_length=255, null=False)
 
     # company_name = ForeignKeyField(CompanyTable, backref='category')

@@ -25,8 +25,8 @@ ConditionMapper = {
 def first_crawl():
     items = []
     url_company_category_mapper = dict()
-    for category in CategoryTable.select():
-        item_class = ConditionMapper[CategoryTable.condition]
+    for category in CategoryTable.select().where(CategoryTable.id == 7):
+        item_class = ConditionMapper[category.condition]
         items.append(
             item_class(
                 url=category.url,
@@ -105,10 +105,10 @@ def daily_crawl():
 if __name__ == '__main__':
     # first_crawl()
     # init_redis()
-    # daily_crawl()
-    import json
-
-    with open('../db/test.json') as rf:
-        jj = json.load(rf)
-        ii = jj['category'][0]
-        print(test_crawl(ii))
+    daily_crawl()
+    # import json
+    #
+    # with open('../db/test.json') as rf:
+    #     jj = json.load(rf)
+    #     ii = jj['category'][0]
+    #     print(test_crawl(ii))
