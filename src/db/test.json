@@ -1,21 +1,21 @@
 {
-  "company": "安徽城镇供水协会",
-  "domain": "http://www.ahwsa.com",
+  "company": "中国水环境集团(官网)",
+  "domain": "http://www.citicwater.com",
   "category": [
     {
-      "name": "水务研究",
-      "url": "http://admin.ahwsa.com/php/index.php?a=list&page=1&type=2&pageSize=5",
-      "condition": 0,
-      "is_direct": false,
-      "is_json": true,
-      "article_url_rule": null,
+      "name": " 工作动态",
+      "url": "http://www.citicwater.com/news.aspx?info_lb=35&flag=3",
+      "condition": 3,
+      "is_direct": true,
+      "is_json": false,
+      "article_url_rule": "//div[@class='xingfa_nr']/ul[@class='data-list']/li/a/@href",
       "article_middle_url_rule": null,
       "article_query_url": null,
-      "article_json_rule": "{}['data']['list']",
-      "article_title_rule": "{}['title']",
-      "article_author_rule": "{}['author']",
-      "article_publish_time_rule": "{}['create_time']",
-      "article_content_rule": "{}['content']"
+      "article_json_rule": null,
+      "article_title_rule": "//h1",
+      "article_author_rule": null,
+      "article_publish_time_rule": "//div[@class='view-info']/span[1]",
+      "article_content_rule": "//div[@class='view-cnt']"
     }
   ]
 }

@@ -11,7 +11,6 @@ import requests
 
 from logger import MyLogger
 from exception import OutTryException
-from utils import generate_header
 from bloom_filter import MyBloomFilter
 
 """
@@ -54,16 +53,43 @@ class Item:
         # 现在只针对json数据形式
 
 
-class StaticItem(Item):
+class SimpleItem(Item):
     """ condition 0，普通的前后端分离，在栏目页就可以直接拿到全部内容 """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detail.pop('article_url_rule')
+        self.detail.pop('article_middle_url_rule')
+        self.detail.pop('article_query_url')
+        self.detail.pop('article_json_rule')
 
 
 class AjaxItem(Item):
     """ condition 1，需要通过索引页拿到相关json数据，然后构造文章URL再去拿内容"""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detail.pop('article_json_rule')
+
 
 class HeadlessItem(Item):
     """ condition 2，那些特别麻烦的，在栏目页就需要post拿数据的，直接用无头去拿到文章的url，再做分析"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detail.pop('article_middle_url_rule')
+        self.detail.pop('article_query_url')
+        self.detail.pop('article_json_rule')
+
+
+class StaticItem(Item):
+    """ condition 3，静态页面，就是翻页是ajax而已 """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detail.pop('article_json_rule')
+        self.detail.pop('article_middle_url_rule')
+        self.detail.pop('article_query_url')
 
 
 class Crawler:
@@ -72,9 +98,10 @@ class Crawler:
             items = [items]
         self.items = items
         self.item_handle_mapper = {
-            'StaticItem': self._scrape_static_core,
+            'SimpleItem': self._scrape_simple_core,
             'AjaxItem': self._scrap_ajax_core,
             'HeadlessItem': self._scrape_headless_core,
+            'StaticItem': self._scrape_static_core,
         }
         self.debug = debug
 
@@ -98,22 +125,19 @@ class Crawler:
         _count = 0
         for k, v in res.items():
             _count += len(v)
-        LOGGER.info('本次爬取新增[{}]条记录'.format(_count))
+        if self.debug:
+            LOGGER.info('test: 本次爬取找到[{}]条记录'.format(_count))
+        else:
+            LOGGER.info('本次爬取新增[{}]条记录'.format(_count))
 
         return res  # {'url1': [urlDetail(url1-1, {key: value})], ...}
 
-    def _scrape_static_core(self, url_detail):  # 只处理普通的json式数据
+    def _scrape_simple_core(self, url_detail):  # 只处理普通的json式数据
         response = self._handle_request(url_detail.url)
         # 去掉无用规则
-        url_detail.detail.pop('article_url_rule')
-        url_detail.detail.pop('article_middle_url_rule')
-        url_detail.detail.pop('article_query_url')
-
-        return self._fetch_json_static(response.json(), url_detail)  # 从json中提取数据
+        return self._fetch_json_simple(response.json(), url_detail)  # 从json中提取数据
 
     def _scrap_ajax_core(self, url_detail):
-        url_detail.detail.pop('article_json_rule')  # 暂时直接在这里修改，删掉json rule
-
         category_response = self._handle_request(url_detail.url)
         # 通过索引页提取文章的参数
         article_params = eval(url_detail.detail.pop('article_url_rule').format('category_response.json()'))
@@ -148,23 +172,9 @@ class Crawler:
         else:
             filter_url_details = [u for u in url_details if not BloomFilter.is_contain(u[0].url)]
 
-        with requests.Session() as session:  # 后面改成协程
-            session.headers.update(HEADER)
-            res = []
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                url_mapper = {executor.submit(self._thread_func_fetch_json, session, *url_detail): url_detail[0]
-                              for url_detail in filter_url_details}
-                for future in as_completed(url_mapper):
-                    _u = url_mapper[future]
-                    try:
-                        res.append(future.result())
-                        if not self.debug:
-                            BloomFilter.insert(_u.url)
-                    except Exception as exc:
-                        LOGGER.warning(('获取content_json失败 ', _u.url, exc))
-        return res
+        return self._handle_session_request(filter_url_details, self._thread_func_fetch_json)
 
-    def _fetch_json_static(self, json_, url_detail):
+    def _fetch_json_simple(self, json_, url_detail):
         if url_detail.is_direct:
             url_detail.detail.pop('article_json_rule')
         else:
@@ -229,7 +239,7 @@ class Crawler:
         return self._fetch_json_ajax(response.json(), url_detail)
 
     @staticmethod
-    def _handle_request(url, session=None, extra_cookie=None):  # 将请求这个动作单独抽象出来
+    def _handle_request(url, session=None, extra_cookie=None):  # 将 请求 这个动作单独抽象出来
         max_try_again_time = MAX_TRY_AGAIN_TIME
         if session and extra_cookie:
             session.cookies = extra_cookie
@@ -250,15 +260,11 @@ class Crawler:
 
     # 暂时来讲，无头拿到的文章页，然后文章页就是静态的了
     def _scrape_headless_core(self, url_detail):
-
-        url_detail.detail.pop('article_middle_url_rule')
-        url_detail.detail.pop('article_query_url')
-        url_detail.detail.pop('article_json_rule')
-
         op = webdriver.FirefoxOptions()
         op.add_argument('-headless')
         browser = webdriver.Firefox(options=op)
         browser.get(url_detail.url)
+        # 暂时先取href属性
         article_urls = [ele.get_attribute('href') for ele in
                         browser.find_elements_by_xpath(url_detail.detail.pop('article_url_rule'))]
         browser.close()
@@ -268,24 +274,10 @@ class Crawler:
 
         url_details = [(UrlDetail(url, url_detail.detail), None) for url in article_urls]  # 将cookie也包到tuple中
 
-        with requests.Session() as session:  # 后面改成协程
-            session.headers.update(HEADER)
-            res = []
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                url_mapper = {executor.submit(self._thread_func_fetch_headless, session, *url_detail): url_detail[0]
-                              for url_detail in url_details}
-                for future in as_completed(url_mapper):
-                    _u = url_mapper[future]
-                    try:
-                        res.append(future.result())
-                        if not self.debug:
-                            BloomFilter.insert(_u.url)
-                    except Exception as exc:
-                        LOGGER.warning(('获取content_headless失败 ', _u.url, exc))
-        return res
+        return self._handle_session_request(url_details, self._thread_func_fetch_static_content)
 
     @staticmethod
-    def _fetch_headless(content, url_detail):
+    def _fetch_static_content(content, url_detail):
         body = etree.HTML(content)
         scrape_res = {}
         fail_time = 0
@@ -294,7 +286,7 @@ class Crawler:
                 if v is None:
                     scrape_res[k] = None
                     continue
-                _value = body.xpath(v)
+                _value = body.xpath('string(' + v + ')')  # string(rule)
                 if _value:
                     scrape_res[k] = _value
                 else:
@@ -309,9 +301,26 @@ class Crawler:
         else:
             return UrlDetail(url=url_detail.url, detail=scrape_res)
 
-    def _thread_func_fetch_headless(self, session, url_detail, extra_cookie=None):
+    def _thread_func_fetch_static_content(self, session, url_detail, extra_cookie=None):
         response = self._handle_request(url_detail.url, session, extra_cookie)
-        return self._fetch_headless(self.transform2utf8(response), url_detail)
+        return self._fetch_static_content(self.transform2utf8(response), url_detail)
+
+    def _handle_session_request(self, url_details, func):  # 这里的 url_details 里面包含着 detail 和 cookies
+        with requests.Session() as session:  # 后面改成协程
+            session.headers.update(HEADER)
+            res = []
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                url_mapper = {executor.submit(func, session, *url_detail): url_detail[0]
+                              for url_detail in url_details}
+                for future in as_completed(url_mapper):
+                    _u = url_mapper[future]
+                    try:
+                        res.append(future.result())
+                        if not self.debug:
+                            BloomFilter.insert(_u.url)
+                    except Exception as exc:
+                        LOGGER.warning(('获取content_headless失败 ', _u.url, exc))
+        return res
 
     def crawl(self):
         return self._scrap()
@@ -346,6 +355,19 @@ class Crawler:
             return resp.content.decode('utf-8')  # 先猜文档本身是utf8，只是没从头部识别出来
         except UnicodeDecodeError:
             return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
+
+    def _scrape_static_core(self, url_detail):
+        response = self._handle_request(url_detail.url)
+        html = etree.HTML(self.transform2utf8(response))  # 要注意编码
+        article_urls = html.xpath(url_detail.detail.pop('article_url_rule'))
+        if article_urls:
+            o = urlparse(article_urls[0])
+            if not (o.scheme and o.netloc):  # 如果这部分的url是相对url，则需要拼接起来
+                _o = urlparse(url_detail.url)
+                article_urls = [urlunparse([_o.scheme, _o.netloc, _url, '', '', ''])
+                                for _url in article_urls]
+            url_details = [(UrlDetail(url, url_detail.detail), None) for url in article_urls]  # 将cookie也包到tuple中
+            return self._handle_session_request(url_details, self._thread_func_fetch_static_content)
 
 
 if __name__ == '__main__':

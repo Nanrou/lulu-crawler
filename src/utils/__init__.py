@@ -1,4 +1,7 @@
-__all__ = ['generate_header']
+from datetime import datetime
+import re
+
+__all__ = ['generate_header', 'handle_time_format']
 
 
 def generate_header(raw_text=None, delimiter=': '):
@@ -20,3 +23,29 @@ User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:59.0) Gecko/2010010
             k, v = line.split(delimiter)
             _header[k] = v
     return _header
+
+
+def handle_time_format(string):
+    build_formats = [
+        '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+        '\d{4}-\d{2}-\d{2} \d{2}:\d{2}',
+        '\d{4}-\d{2}-\d{2}',
+        '\d{4}年\d{2}月\d{2}日',
+        '\d{4}/\d{2}/\d{2}',
+        '\d{4}\.\d{2}\.\d{2}',
+    ]
+    format_mapper = {
+        '\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}': '%Y-%m-%d %H:%M:%S',
+        '\d{4}-\d{2}-\d{2} \d{2}:\d{2}': '%Y-%m-%d %H:%M',
+        '\d{4}-\d{2}-\d{2}': '%Y-%m-%d',
+        '\d{4}年\d{2}月\d{2}日': '%Y年%月%d日',
+        '\d{4}/\d{2}/\d{2}': '%Y/%m/%d',
+        '\d{4}\.\d{2}\.\d{2}': '%Y.%m.%d',
+    }
+    for _format in build_formats:
+        match_result = re.search(_format, string)
+        if match_result:
+            time_string = match_result.group()
+            return datetime.strptime(time_string, format_mapper[_format])
+    else:
+        return False

@@ -1,11 +1,13 @@
 from datetime import datetime
+import random
 
 from html2text import HTML2Text
 
-from lulu.alpha import Crawler, StaticItem, AjaxItem, HeadlessItem
-from lulu.beta import Crawler
+from lulu.beta import Crawler, SimpleItem, AjaxItem, HeadlessItem, StaticItem
 from db.orm import CategoryTable, ArticleTable, MYSQL_DB
 from bloom_filter import MyBloomFilter
+from utils import handle_time_format
+
 
 TextMaker = HTML2Text()
 TextMaker.ignore_links = True
@@ -16,16 +18,17 @@ TextMaker.single_line_break = True
 BloomFilter = MyBloomFilter()
 
 ConditionMapper = {
-    0: StaticItem,
+    0: SimpleItem,
     1: AjaxItem,
-    2: HeadlessItem
+    2: HeadlessItem,
+    3: StaticItem,
 }
 
 
 def first_crawl():
     items = []
     url_company_category_mapper = dict()
-    for category in CategoryTable.select().where(CategoryTable.id == 7):
+    for category in CategoryTable.select():
         item_class = ConditionMapper[category.condition]
         items.append(
             item_class(
@@ -53,6 +56,7 @@ def first_crawl():
         insert_list = []
         company, category = url_company_category_mapper[k]
         for single_url in v:
+            _time = handle_time_format(single_url.detail['article_publish_time_rule'])
             single_part = dict(
                 url=single_url.url,
                 company_name=company,
@@ -62,8 +66,7 @@ def first_crawl():
                 if single_url.detail['article_title_rule'] else None,
                 author=TextMaker.handle(single_url.detail['article_author_rule'])
                 if single_url.detail['article_author_rule'] else None,
-                publish_time=TextMaker.handle(single_url.detail['article_publish_time_rule'])
-                if single_url.detail['article_publish_time_rule'] else datetime.now(),
+                publish_time=_time if _time else datetime.now(),
                 content=TextMaker.handle(single_url.detail['article_content_rule'])
                 if single_url.detail['article_content_rule'] else None,
             )
@@ -105,10 +108,10 @@ def daily_crawl():
 if __name__ == '__main__':
     # first_crawl()
     # init_redis()
-    daily_crawl()
-    # import json
-    #
-    # with open('../db/test.json') as rf:
-    #     jj = json.load(rf)
-    #     ii = jj['category'][0]
-    #     print(test_crawl(ii))
+    # daily_crawl()
+    import json
+
+    with open('../db/test.json') as rf:
+        jj = json.load(rf)
+        ii = jj['category'][random.randint(0, len(jj['category']) - 1)]
+        print(test_crawl(ii))

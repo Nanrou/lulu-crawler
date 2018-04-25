@@ -3,6 +3,9 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from peewee import MySQLDatabase, SqliteDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
     TextField
+"""
+TODO: 添加 最后编辑人
+"""
 
 MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='nanrou',
                          host='127.0.0.1', port=3306)
