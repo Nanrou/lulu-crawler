@@ -149,6 +149,7 @@ def get_company(company):
             'article_url_rule': categories[0].article_url_rule,
             'article_middle_url_rule': categories[0].article_middle_url_rule,
             'article_query_url': categories[0].article_query_url,
+            'article_json_rule': categories[0].article_json_rule,
             'article_title_rule': categories[0].article_title_rule,
             'article_author_rule': categories[0].article_author_rule,
             'article_publish_time_rule': categories[0].article_publish_time_rule,

@@ -17,22 +17,26 @@ def input_json2db(file):
         CompanyTable.create(domain=item['domain'], name=item['company'])
         bulk_cate = []
         for cate in item['category']:
-            bulk_cate.append({
-                'name': cate['name'],
-                'url': cate['url'],
-                'condition': cate['condition'],
-                'is_direct': cate['is_direct'],
-                'article_url_rule': cate['article_url_rule'],
-                'article_middle_url_rule': cate['article_middle_url_rule'],
-                'article_query_url': cate['article_query_url'],
-                'article_json_rule': cate['article_json_rule'],
-                'article_title_rule': cate['article_title_rule'],
-                'article_author_rule': cate['article_author_rule'],
-                'article_publish_time_rule': cate['article_publish_time_rule'],
-                'article_content_rule': cate['article_content_rule'],
-                # 'company_name': CompanyTable.get(CompanyTable.name == item['company'])
-                'company_name': item['company'],
-            })
+            try:
+                bulk_cate.append({
+                    'name': cate['name'],
+                    'url': cate['url'],
+                    'condition': cate['condition'],
+                    'is_direct': cate['is_direct'],
+                    'article_url_rule': cate['article_url_rule'],
+                    'article_middle_url_rule': cate['article_middle_url_rule'],
+                    'article_query_url': cate['article_query_url'],
+                    'article_json_rule': cate['article_json_rule'],
+                    'article_title_rule': cate['article_title_rule'],
+                    'article_author_rule': cate['article_author_rule'],
+                    'article_publish_time_rule': cate['article_publish_time_rule'],
+                    'article_content_rule': cate['article_content_rule'],
+                    # 'company_name': CompanyTable.get(CompanyTable.name == item['company'])
+                    'company_name': item['company'],
+                })
+            except KeyError:
+                print('{} {} error'.format(item['company'], cate['name']))
+                raise RuntimeError
         with MYSQL_DB.atomic():  # 包在事务里
             CategoryTable.insert_many(bulk_cate).execute()
 

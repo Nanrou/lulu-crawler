@@ -5,8 +5,8 @@ from html2text import HTML2Text
 
 from lulu.beta import Crawler, SimpleItem, AjaxItem, HeadlessItem, StaticItem
 from db.orm import CategoryTable, ArticleTable, MYSQL_DB
-from bloom_filter import MyBloomFilter
-from utils import handle_time_format
+from utils.bloom_filter import MyBloomFilter
+from utils.common import handle_time_format
 
 
 TextMaker = HTML2Text()

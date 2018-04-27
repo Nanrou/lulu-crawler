@@ -58,22 +58,23 @@ class BloomFilter:
 
 
 class RedisAdapter:
-    def __init__(self, redis=None):
+    def __init__(self, redis, key_name):
         if redis is None:
             redis = Redis(db=2)
         self.redis = redis
+        self.key_name = key_name
 
     def __getitem__(self, item):
-        return self.redis.getbit('shuiwujia:bf', item)
+        return self.redis.getbit(self.key_name, item)
 
     def __setitem__(self, key, value):
-        return self.redis.setbit('shuiwujia:bf', key, value)
+        return self.redis.setbit(self.key_name, key, value)
 
 
 class MyBloomFilter(BloomFilter):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._map = RedisAdapter()
+    def __init__(self, redis=None, key_name='shuiwujia:bf', **kwargs):
+        super().__init__(**kwargs)
+        self._map = RedisAdapter(redis, key_name)
 
 
 if __name__ == '__main__':

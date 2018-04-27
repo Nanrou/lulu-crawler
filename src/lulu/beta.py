@@ -11,7 +11,7 @@ import requests
 
 from logger import MyLogger
 from exception import OutTryException
-from bloom_filter import MyBloomFilter
+from utils.bloom_filter import MyBloomFilter
 
 """
 过滤操作，暂时直接在主逻辑里判断
@@ -61,7 +61,6 @@ class SimpleItem(Item):
         self.detail.pop('article_url_rule')
         self.detail.pop('article_middle_url_rule')
         self.detail.pop('article_query_url')
-        self.detail.pop('article_json_rule')
 
 
 class AjaxItem(Item):
