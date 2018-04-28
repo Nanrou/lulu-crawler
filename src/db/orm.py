@@ -3,6 +3,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from peewee import MySQLDatabase, SqliteDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
     TextField
+
 """
 TODO: 添加 最后编辑人
 """
@@ -105,4 +106,11 @@ class UserTable(BaseModel):
         table_name = 'UserTable'
 
 
-ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable]
+class SwordFishTable(BaseModel):
+    article_id = CharField(max_length=128)
+    title = CharField()
+    origin_url = CharField()
+    collected_time = DateTimeField(default=datetime.now())
+
+
+ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable, SwordFishTable]
