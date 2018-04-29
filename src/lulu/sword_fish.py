@@ -4,6 +4,8 @@ from email.header import Header
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import pickle
+from random import randint
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -11,10 +13,13 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from lxml import etree
 import requests
 
-from lulu.beta import HEADER
 from db.orm import SwordFishTable
+from exception import OutTryException
+from lulu.beta import HEADER
+from logger import MyLogger
 from utils.bloom_filter import MyBloomFilter
 
 from unfollow import EMAIL, PSW, MAIL_HOST, RECEIVERS
@@ -29,6 +34,7 @@ EMAIL_HTML = '''
 '''
 
 BloomFilter = MyBloomFilter(key_name='shuiwujia:sf')
+LOGGER = MyLogger(__file__)
 
 QR_CODE_XPATH = "//img[@id='layerImg-login']"
 DATE_XPATH = "//div[@class='fl timer']/ul/li[2]"
@@ -47,12 +53,11 @@ class SwordFish:
         # op.add_argument('-headless')
         browser = webdriver.Firefox(options=op)
 
-        _cookie = self._load_local_cookie()  # 注意brower的cookie格式
+        _cookie = self._load_cookie('browser_cookie')  # 注意browser的cookie格式
         browser.add_cookie(_cookie)
         browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
 
-        # todo sign in
-        # todo 存cookies
+        # 登陆，存cookies
         try:
             browser.find_element_by_xpath('//div[@id="login"]/img')
         except NoSuchElementException:
@@ -73,7 +78,7 @@ class SwordFish:
         browser.find_element_by_xpath(INPUT_XPATH).send_keys('水务', Keys.ENTER)  # TODO 多个关键字
 
         pagination_flag = True
-        filter_articles = []
+        filter_article_ids = []
 
         # 搜索结果页操作
         try:
@@ -97,25 +102,75 @@ class SwordFish:
                             EC.presence_of_element_located((By.XPATH, "//div[@class='pagination-inner fr']/a[2]"))
                         )  # 等待加载翻页
                         next_ele.click()
-                filter_articles.extend(_filter_articles)
+                filter_article_ids.extend(_filter_articles)
         except NoSuchElementException:
             pass
         else:
-            self._scrap_core()
-        print(filter_articles)
-        print(len(filter_articles))
-        browser.close()
+            self._scrap_core(filter_article_ids)
+        finally:
+            browser.close()
 
-    def _scrap_core(self):
-        pass
+    def _scrap_core(self, filter_articles):
+        with requests.Session() as session:  # 后面改成协程
+            session.headers.update(HEADER)
+            session.cookies.update(self._save_cookie('request_cookie'))
+            res = []
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                url_mapper = {executor.submit(self._thread_scrap_func, session, data_id): data_id
+                              for data_id in filter_articles}
+                for future in as_completed(url_mapper):
+                    _u = url_mapper[future]
+                    try:
+                        res.append(future.result())
+                        if not self.debug:
+                            BloomFilter.insert(_u)
+                    except Exception as exc:
+                        LOGGER.warning(('获取content失败 ', _u, exc))
+            # TODO store
 
-    def _load_local_cookie(self):
-        pass
+    def _thread_scrap_func(self, session, data_id):
+        resp = self._handle_session(session, 'https://www.jianyu360.com/article/content/{}.html'.format(data_id))
+        return data_id, *self._fetch_content(self.transform2utf8(resp))
+
+    @staticmethod
+    def _handle_session(session, url):
+        max_try_again_time = 3
+        while max_try_again_time:
+            try:
+                resp = session.get(url, timeout=randint(1, 3))
+                if resp.status_code == 200:
+                    return resp
+                else:
+                    max_try_again_time -= 1
+            except requests.Timeout:
+                max_try_again_time -= 1
+        else:
+            raise OutTryException
+
+    @staticmethod
+    def _fetch_content(content):
+        body = etree.HTML(content)
+        title = body.xpath('string(//head/title)').replace(' - 剑鱼招标订阅', '')
+        original_url = body.xpath('string(' + ORIGINAL_XPATH + ')')
+        return title, original_url
+
+    @staticmethod
+    def _load_cookie(type_):
+        with open('./cookie.pickle', 'rb') as rf:
+            return pickle.load(rf).get(type_)
+
+    @staticmethod
+    def _save_cookie(cookie_dict):
+        with open('./cookie.pickle', 'wb') as wf:
+            pickle.dump({
+                'browser_cookie': cookie_dict,
+                'request_cookie': {item['name']: item['value'] for item in cookie_dict},
+            }, wf)
 
     @staticmethod
     def _send_email(qr_url):
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = Header('登陆验证', 'utf-8')
+        msg['Subject'] = Header('扫描登陆', 'utf-8')
         _response = requests.get(qr_url, headers=HEADER)
         msg_image = MIMEImage(_response.content)
         msg_image.add_header('Content-ID', '<image>')
@@ -140,6 +195,18 @@ class SwordFish:
 
     def run(self):
         self._headless_request()
+
+    @classmethod
+    def transform2utf8(cls, resp: requests.Response):
+        if resp.encoding == 'utf-8':
+            return resp.text
+        try:
+            return resp.content.decode('utf-8')  # 先猜文档本身是utf8，只是没从头部识别出来
+        except UnicodeDecodeError:
+            return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
+
+    def _store(self):  # 保存记录 id, title, original_url
+        pass
 
 
 if __name__ == '__main__':
