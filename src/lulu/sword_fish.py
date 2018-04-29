@@ -4,6 +4,7 @@ from email.header import Header
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from datetime import datetime
 import pickle
 from random import randint
 
@@ -16,7 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from lxml import etree
 import requests
 
-from db.orm import SwordFishTable
+from db.orm import SwordFishTable, MYSQL_DB
 from exception import OutTryException
 from lulu.beta import HEADER
 from logger import MyLogger
@@ -126,7 +127,7 @@ class SwordFish:
                             BloomFilter.insert(_u)
                     except Exception as exc:
                         LOGGER.warning(('获取content失败 ', _u, exc))
-            # TODO store
+        self._store(res)
 
     def _thread_scrap_func(self, session, data_id):
         resp = self._handle_session(session, 'https://www.jianyu360.com/article/content/{}.html'.format(data_id))
@@ -205,8 +206,17 @@ class SwordFish:
         except UnicodeDecodeError:
             return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
 
-    def _store(self):  # 保存记录 id, title, original_url
-        pass
+    @staticmethod
+    def _store(items):  # 保存记录 id, title, original_url
+        bulk_items = []
+        for item in items:
+            bulk_items.append({
+                'article_id': item[0],
+                'title': item[1],
+                'origin_url': item[2],
+            })
+        with MYSQL_DB.atomic():
+            SwordFishTable.insert_many(bulk_items).execute()
 
 
 if __name__ == '__main__':

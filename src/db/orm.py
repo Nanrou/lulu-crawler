@@ -112,5 +112,8 @@ class SwordFishTable(BaseModel):
     origin_url = CharField()
     collected_time = DateTimeField(default=datetime.now())
 
+    class Meta:
+        table_name = 'SwordFishTable'
+
 
 ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable, SwordFishTable]
