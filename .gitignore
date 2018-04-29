@@ -105,6 +105,7 @@ test_file.txt
 test.py
 website*.json
 unfollow.py
+*.pickle
 
 # vue
 .DS_Store
