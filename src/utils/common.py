@@ -49,3 +49,5 @@ def handle_time_format(string):
             return datetime.strptime(time_string, format_mapper[_format])
     else:
         return False
+
+

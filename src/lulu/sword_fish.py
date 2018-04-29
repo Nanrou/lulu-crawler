@@ -1,4 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import smtplib
+from email.header import Header
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -6,10 +11,22 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import redis
 import requests
 
+from lulu.beta import HEADER
+from db.orm import SwordFishTable
 from utils.bloom_filter import MyBloomFilter
+
+from unfollow import EMAIL, PSW, MAIL_HOST, RECEIVERS
+
+EMAIL_HTML = '''
+<html>
+  <head></head>
+  <body>
+    <img src="cid:image">
+  </body>
+</html>
+'''
 
 BloomFilter = MyBloomFilter(key_name='shuiwujia:sf')
 
@@ -29,10 +46,26 @@ class SwordFish:
         op = webdriver.FirefoxOptions()
         # op.add_argument('-headless')
         browser = webdriver.Firefox(options=op)
+
+        _cookie = self._load_local_cookie()  # 注意brower的cookie格式
+        browser.add_cookie(_cookie)
         browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
 
         # todo sign in
         # todo 存cookies
+        try:
+            browser.find_element_by_xpath('//div[@id="login"]/img')
+        except NoSuchElementException:
+            qr_url = browser.find_element_by_xpath(QR_CODE_XPATH).get_attribute('src')
+            self._send_email(qr_url)  # TODO WeChat robot
+            try:
+                WebDriverWait(browser, 60 * 10).until(
+                    EC.presence_of_element_located((By.XPATH, '//div[@id="login"]/img'))
+                )  # 等待登陆
+                self._save_cookie(browser.get_cookies())
+            except NoSuchElementException:
+                # TODO log
+                browser.close()
 
         browser.find_element_by_xpath(DATE_XPATH).click()  # 选择7天以内
         browser.find_element_by_xpath(CATEGORY_XPATH).click()  # 只选招标
@@ -76,7 +109,39 @@ class SwordFish:
     def _scrap_core(self):
         pass
 
+    def _load_local_cookie(self):
+        pass
+
+    @staticmethod
+    def _send_email(qr_url):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = Header('登陆验证', 'utf-8')
+        _response = requests.get(qr_url, headers=HEADER)
+        msg_image = MIMEImage(_response.content)
+        msg_image.add_header('Content-ID', '<image>')
+        msg.attach(msg_image)
+
+        content = MIMEText(EMAIL_HTML, 'html', 'utf-8')
+        msg.attach(content)
+
+        msg['From'] = 'SF_robot'
+        msg['To'] = ','.join(RECEIVERS)
+
+        try:
+            smtp_obj = smtplib.SMTP()
+            smtp_obj.connect(MAIL_HOST, 25)
+            smtp_obj.login(EMAIL, PSW)
+            smtp_obj.sendmail(
+                EMAIL, RECEIVERS, msg.as_string()
+            )
+            smtp_obj.quit()
+        except smtplib.SMTPException as e:
+            print('error', e)
+
+    def run(self):
+        self._headless_request()
+
 
 if __name__ == '__main__':
-    sf = SwordFish()
-    sf._headless_request()
+    sf = SwordFish(debug=True)
+    sf.run()
