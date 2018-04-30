@@ -220,5 +220,5 @@ class SwordFish:
 
 
 if __name__ == '__main__':
-    sf = SwordFish(debug=True)
+    sf = SwordFish(debug=False)
     sf.run()

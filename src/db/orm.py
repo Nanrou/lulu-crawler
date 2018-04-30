@@ -117,3 +117,6 @@ class SwordFishTable(BaseModel):
 
 
 ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable, SwordFishTable]
+
+if __name__ == '__main__':
+    pass

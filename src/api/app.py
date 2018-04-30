@@ -228,10 +228,12 @@ def submit_append(data: http.RequestData):
         return {'status': 'fail'}
 
 
+# TODO 添加选择功能，只取今天的
+
 # @annotate(permissions=[IsLogIn()])
-def get_article(company: str, limit=10):
-    try:
-        articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(limit)
+def get_article(company: str, limit):
+    try:  # 倒序出去
+        articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(int(limit))
         res = []
         for article in articles:
             res.append({
@@ -246,8 +248,16 @@ def get_article(company: str, limit=10):
             })
         return res
 
+    except ValueError:
+        return {'status': 'limit 参数错误'}
+
     except DoesNotExist:
         return {'status': 'error'}
+
+
+# @annotate(permissions=[IsLogIn()])
+def get_swordfish(limit):
+    pass
 
 
 # post到login，然后就可以拿数据了
