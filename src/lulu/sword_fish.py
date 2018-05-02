@@ -4,9 +4,9 @@ from email.header import Header
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
 import pickle
 from random import randint
+import os
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -51,27 +51,34 @@ class SwordFish:
 
     def _headless_request(self):
         op = webdriver.FirefoxOptions()
-        # op.add_argument('-headless')
+        op.add_argument('-headless')
         browser = webdriver.Firefox(options=op)
 
-        _cookie = self._load_cookie('browser_cookie')  # 注意browser的cookie格式
-        browser.add_cookie(_cookie)
         browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
+
+        if os.path.exists('./cookie.pickle'):
+            for _cookie in self._load_cookie('browser_cookie'):  # 注意browser的cookie格式
+                browser.add_cookie({'name': _cookie['name'], 'value': _cookie['value']})
+            browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
 
         # 登陆，存cookies
         try:
             browser.find_element_by_xpath('//div[@id="login"]/img')
         except NoSuchElementException:
             qr_url = browser.find_element_by_xpath(QR_CODE_XPATH).get_attribute('src')
-            self._send_email(qr_url)  # TODO WeChat robot
+            try:
+                self._send_email(qr_url)  # TODO WeChat robot
+            except smtplib.SMTPException as e:
+                LOGGER.warning('email error: ', e)
+                browser.quit()
             try:
                 WebDriverWait(browser, 60 * 10).until(
                     EC.presence_of_element_located((By.XPATH, '//div[@id="login"]/img'))
                 )  # 等待登陆
                 self._save_cookie(browser.get_cookies())
-            except NoSuchElementException:
+            except NoSuchElementException or KeyboardInterrupt:
                 # TODO log
-                browser.close()
+                browser.quit()
 
         browser.find_element_by_xpath(DATE_XPATH).click()  # 选择7天以内
         browser.find_element_by_xpath(CATEGORY_XPATH).click()  # 只选招标
@@ -109,12 +116,12 @@ class SwordFish:
         else:
             self._scrap_core(filter_article_ids)
         finally:
-            browser.close()
+            browser.quit()
 
     def _scrap_core(self, filter_articles):
         with requests.Session() as session:  # 后面改成协程
             session.headers.update(HEADER)
-            session.cookies.update(self._save_cookie('request_cookie'))
+            session.cookies.update(self._load_cookie('request_cookie'))
             res = []
             with ThreadPoolExecutor(max_workers=3) as executor:
                 url_mapper = {executor.submit(self._thread_scrap_func, session, data_id): data_id
@@ -131,7 +138,7 @@ class SwordFish:
 
     def _thread_scrap_func(self, session, data_id):
         resp = self._handle_session(session, 'https://www.jianyu360.com/article/content/{}.html'.format(data_id))
-        return data_id, *self._fetch_content(self.transform2utf8(resp))
+        return [data_id] + self._fetch_content(self.transform2utf8(resp))
 
     @staticmethod
     def _handle_session(session, url):
@@ -153,7 +160,7 @@ class SwordFish:
         body = etree.HTML(content)
         title = body.xpath('string(//head/title)').replace(' - 剑鱼招标订阅', '')
         original_url = body.xpath('string(' + ORIGINAL_XPATH + ')')
-        return title, original_url
+        return [title, original_url]
 
     @staticmethod
     def _load_cookie(type_):
@@ -162,6 +169,7 @@ class SwordFish:
 
     @staticmethod
     def _save_cookie(cookie_dict):
+        print(cookie_dict)
         with open('./cookie.pickle', 'wb') as wf:
             pickle.dump({
                 'browser_cookie': cookie_dict,
@@ -171,7 +179,7 @@ class SwordFish:
     @staticmethod
     def _send_email(qr_url):
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = Header('扫描登陆', 'utf-8')
+        msg['Subject'] = Header('要扫描登陆', 'utf-8')
         _response = requests.get(qr_url, headers=HEADER)
         msg_image = MIMEImage(_response.content)
         msg_image.add_header('Content-ID', '<image>')
@@ -180,19 +188,16 @@ class SwordFish:
         content = MIMEText(EMAIL_HTML, 'html', 'utf-8')
         msg.attach(content)
 
-        msg['From'] = 'SF_robot'
+        msg['From'] = 'SF_小可爱'
         msg['To'] = ','.join(RECEIVERS)
 
-        try:
-            smtp_obj = smtplib.SMTP()
-            smtp_obj.connect(MAIL_HOST, 25)
-            smtp_obj.login(EMAIL, PSW)
-            smtp_obj.sendmail(
-                EMAIL, RECEIVERS, msg.as_string()
-            )
-            smtp_obj.quit()
-        except smtplib.SMTPException as e:
-            print('error', e)
+        smtp_obj = smtplib.SMTP()
+        smtp_obj.connect(MAIL_HOST, 25)
+        smtp_obj.login(EMAIL, PSW)
+        smtp_obj.sendmail(
+            EMAIL, RECEIVERS, msg.as_string()
+        )
+        smtp_obj.quit()
 
     def run(self):
         self._headless_request()
@@ -206,8 +211,7 @@ class SwordFish:
         except UnicodeDecodeError:
             return resp.content.decode('gbk').encode('utf-8').decode('utf-8')
 
-    @staticmethod
-    def _store(items):  # 保存记录 id, title, original_url
+    def _store(self, items):  # 保存记录 id, title, original_url
         bulk_items = []
         for item in items:
             bulk_items.append({
@@ -215,10 +219,14 @@ class SwordFish:
                 'title': item[1],
                 'origin_url': item[2],
             })
-        with MYSQL_DB.atomic():
-            SwordFishTable.insert_many(bulk_items).execute()
+        if self.debug:
+            for item in bulk_items:
+                print(item)
+        else:
+            with MYSQL_DB.atomic():
+                SwordFishTable.insert_many(bulk_items).execute()
 
 
 if __name__ == '__main__':
-    sf = SwordFish(debug=False)
+    sf = SwordFish(debug=True)
     sf.run()
