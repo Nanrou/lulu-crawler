@@ -1,3 +1,4 @@
+from datetime import datetime
 import random
 
 from redis import Redis
@@ -15,7 +16,7 @@ import os
 PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.insert(0, PROJECT_DIR)
 
-from db.orm import UserTable, CompanyTable, CategoryTable, ArticleTable
+from db.orm import UserTable, CompanyTable, CategoryTable, ArticleTable, SwordFishTable
 from lulu.core_logic import test_crawl
 
 REDIS_DB = Redis()
@@ -228,11 +229,26 @@ def submit_append(data: http.RequestData):
         return {'status': 'fail'}
 
 
-# TODO 添加选择功能，只取今天的
+def get_data_of_day(table, time_attribute, limit, today, date):
+    if date:
+        year, month, day = date.split('-')
+    elif today:
+        now_ = datetime.now()
+        year, month, day = now_.year, now_.month, now_.day
+    else:
+        return {'status': 'error time args'}
+
+    try:
+        d1 = datetime(year=year, month=month, day=day)
+        d2 = datetime(year=year, month=month, day=day, hour=23, minute=59, second=59)
+        return table.select().where(getattr(table, time_attribute).between(d1, d2)).limit(limit)
+    except TypeError:
+        return {'status': 'error time args'}
+
 
 # @annotate(permissions=[IsLogIn()])
 def get_article(company: str, limit):
-    try:  # 倒序出去
+    try:  # TODO 倒序出去
         articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(int(limit))
         res = []
         for article in articles:
@@ -256,8 +272,16 @@ def get_article(company: str, limit):
 
 
 # @annotate(permissions=[IsLogIn()])
-def get_swordfish(limit):
-    pass
+def get_swordfish(limit: int=None, today: bool=True, date: str=None):  # 要求date的格式为 yyyy-mm-dd
+    res = []
+    for item in get_data_of_day(SwordFishTable, 'collected_time', limit, today, date):
+        res.append({
+            'article_id': item.article_id,
+            'title': item.title,
+            'origin_url': item.origin_url,
+            'collected_time': item.collected_time.strftime('%Y/%m/%d %H:%M:%S'),
+        })
+    return res
 
 
 # post到login，然后就可以拿数据了
@@ -272,6 +296,7 @@ routes = [
     Route('/api/submit', 'POST', submit_edit),
     Route('/api/append', 'POST', submit_append),
     Route('/api/get_article', 'GET', get_article),
+    Route('/api/get_swordfish', 'GET', get_swordfish),
     Include('/docs', docs_urls),
     Include('/statics', static_urls)
 ]

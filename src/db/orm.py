@@ -1,8 +1,9 @@
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
-from peewee import MySQLDatabase, SqliteDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
+from peewee import MySQLDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
     TextField
+from playhouse.pool import PooledMySQLDatabase
 
 """
 TODO: 添加 最后编辑人
@@ -11,10 +12,15 @@ TODO: 添加 最后编辑人
 MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='nanrou',
                          host='127.0.0.1', port=3306)
 
+MYSQL_DB_POOL = PooledMySQLDatabase('shuiwujia', user='root', password='nanrou',
+                                    max_connections=5,
+                                    stale_timeout=60 * 5,
+                                    timeout=3)
+
 
 class BaseModel(Model):
     class Meta:
-        database = MYSQL_DB
+        database = MYSQL_DB_POOL
 
 
 # 这三个表是储存数据的
@@ -109,7 +115,7 @@ class UserTable(BaseModel):
 class SwordFishTable(BaseModel):
     article_id = CharField(max_length=128)
     title = CharField()
-    origin_url = CharField()
+    origin_url = CharField(max_length=2048)
     collected_time = DateTimeField(default=datetime.now())
 
     class Meta:
@@ -119,4 +125,4 @@ class SwordFishTable(BaseModel):
 ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable, SwordFishTable]
 
 if __name__ == '__main__':
-    pass
+    MYSQL_DB_POOL.connect()

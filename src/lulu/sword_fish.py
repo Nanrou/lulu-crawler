@@ -48,11 +48,14 @@ ORIGINAL_XPATH = "//div[@class='original-text']/a/@href"
 class SwordFish:
     def __init__(self, debug=False):
         self.debug = debug
+        if self.debug:
+            LOGGER.debug('------- DEBUG MODE --------')
 
     def _headless_request(self):
         op = webdriver.FirefoxOptions()
         op.add_argument('-headless')
         browser = webdriver.Firefox(options=op)
+        LOGGER.debug('SF: browser start')
 
         browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
 
@@ -68,8 +71,9 @@ class SwordFish:
             qr_url = browser.find_element_by_xpath(QR_CODE_XPATH).get_attribute('src')
             try:
                 self._send_email(qr_url)  # TODO WeChat robot
+                LOGGER.debug('SF: waiting to signIn')
             except smtplib.SMTPException as e:
-                LOGGER.warning('email error: ', e)
+                LOGGER.warning('SF: email error: ', e)
                 browser.quit()
             try:
                 WebDriverWait(browser, 60 * 10).until(
@@ -79,6 +83,8 @@ class SwordFish:
             except NoSuchElementException or KeyboardInterrupt:
                 # TODO log
                 browser.quit()
+
+        LOGGER.debug('SF: signIn success')
 
         browser.find_element_by_xpath(DATE_XPATH).click()  # 选择7天以内
         browser.find_element_by_xpath(CATEGORY_XPATH).click()  # 只选招标
@@ -114,6 +120,7 @@ class SwordFish:
         except NoSuchElementException:
             pass
         else:
+            LOGGER.debug('SF: {} articles to being crawler'.format(len(filter_article_ids)))
             self._scrap_core(filter_article_ids)
         finally:
             browser.quit()
@@ -131,9 +138,9 @@ class SwordFish:
                     try:
                         res.append(future.result())
                         if not self.debug:
-                            BloomFilter.insert(_u)
+                            BloomFilter.insert(_u)  # 去重
                     except Exception as exc:
-                        LOGGER.warning(('获取content失败 ', _u, exc))
+                        LOGGER.warning(('SF: 获取content失败 ', _u, exc))
         self._store(res)
 
     def _thread_scrap_func(self, session, data_id):
@@ -169,7 +176,6 @@ class SwordFish:
 
     @staticmethod
     def _save_cookie(cookie_dict):
-        print(cookie_dict)
         with open('./cookie.pickle', 'wb') as wf:
             pickle.dump({
                 'browser_cookie': cookie_dict,
@@ -214,6 +220,9 @@ class SwordFish:
     def _store(self, items):  # 保存记录 id, title, original_url
         bulk_items = []
         for item in items:
+            if '' in item:
+                LOGGER.warning('miss attribute, {}'.format(item))
+                continue
             bulk_items.append({
                 'article_id': item[0],
                 'title': item[1],
