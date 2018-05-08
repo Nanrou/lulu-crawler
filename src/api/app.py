@@ -247,9 +247,13 @@ def get_data_of_day(table, time_attribute, limit, today, date):
 
 
 # @annotate(permissions=[IsLogIn()])
-def get_article(company: str, limit):
+def get_article(company: str, limit: int=50, first_time: bool=False):
+
     try:  # TODO 倒序出去
-        articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(int(limit))
+        if first_time:
+            articles = ArticleTable.select()
+        else:
+            articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(int(limit))
         res = []
         for article in articles:
             res.append({
@@ -272,7 +276,20 @@ def get_article(company: str, limit):
 
 
 # @annotate(permissions=[IsLogIn()])
-def get_swordfish(limit: int=None, today: bool=True, date: str=None):  # 要求date的格式为 yyyy-mm-dd
+def get_swordfish(limit: int=None, today: bool=True, date: str=None, first_time: bool=False):  # 要求date的格式为 yyyy-mm-dd
+    if first_time:
+        res = []
+        for item in SwordFishTable.select():
+            res.append({
+                'article_id': item.article_id,
+                'title': item.title,
+                'origin_url': item.origin_url,
+                'collected_time': item.collected_time.strftime('%Y/%m/%d %H:%M:%S'),
+            })
+        return res
+
+    if today is None:
+        today = True
     res = []
     for item in get_data_of_day(SwordFishTable, 'collected_time', limit, today, date):
         res.append({
