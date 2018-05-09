@@ -106,6 +106,8 @@ test.py
 website*.json
 unfollow.py
 *.pickle
+geckodriver
+src/core
 
 # vue
 .DS_Store

@@ -19,7 +19,7 @@ sys.path.insert(0, PROJECT_DIR)
 from db.orm import UserTable, CompanyTable, CategoryTable, ArticleTable, SwordFishTable
 from lulu.core_logic import test_crawl
 
-REDIS_DB = Redis()
+REDIS_DB = Redis(host='redis')
 
 
 ################
@@ -248,11 +248,12 @@ def get_data_of_day(table, time_attribute, limit, today, date):
 
 # @annotate(permissions=[IsLogIn()])
 def get_article(company: str, limit: int=50, first_time: bool=False, today: bool=False):
-    if today:
-        return get_data_of_day(ArticleTable, 'collected_time', limit, True, None)
-
     try:  # TODO 倒序出去
-        if first_time:
+        if limit is None:
+            limit = 50
+        if today:
+            articles = get_data_of_day(ArticleTable, 'collected_time', limit, True, None)
+        elif first_time:
             articles = ArticleTable.select()
         else:
             articles = ArticleTable.select().where(ArticleTable.company_name == company).limit(int(limit))

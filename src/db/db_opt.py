@@ -1,5 +1,5 @@
 import json
-from db.orm import MYSQL_DB, ALL_TABLES, CompanyTable, CategoryTable, UserTable
+from orm import MYSQL_DB, ALL_TABLES, CompanyTable, CategoryTable, UserTable
 
 
 def create_tables():
@@ -7,7 +7,7 @@ def create_tables():
         if MYSQL_DB.table_exists(table):
             MYSQL_DB.drop_tables(table)
     MYSQL_DB.create_tables(ALL_TABLES)
-    UserTable.create(username='root', password='123')
+    UserTable.create(username='root', password='shuiwujia')
 
 
 def input_json2db(file):
