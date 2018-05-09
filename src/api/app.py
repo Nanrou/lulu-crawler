@@ -247,7 +247,9 @@ def get_data_of_day(table, time_attribute, limit, today, date):
 
 
 # @annotate(permissions=[IsLogIn()])
-def get_article(company: str, limit: int=50, first_time: bool=False):
+def get_article(company: str, limit: int=50, first_time: bool=False, today: bool=False):
+    if today:
+        return get_data_of_day(ArticleTable, 'collected_time', limit, True, None)
 
     try:  # TODO 倒序出去
         if first_time:

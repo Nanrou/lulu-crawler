@@ -56,7 +56,10 @@ def first_crawl():
         insert_list = []
         company, category = url_company_category_mapper[k]
         for single_url in v:
-            _time = handle_time_format(single_url.detail['article_publish_time_rule'])
+            try:
+                _time = handle_time_format(single_url.detail['article_publish_time_rule'])
+            except TypeError:
+                continue
             single_part = dict(
                 url=single_url.url,
                 company_name=company,
@@ -71,6 +74,8 @@ def first_crawl():
                 if single_url.detail['article_content_rule'] else None,
             )
             insert_list.append(single_part)
+        if not insert_list:
+            continue
         with MYSQL_DB.atomic():
             ArticleTable.insert_many(insert_list).execute()
 
