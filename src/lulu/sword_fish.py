@@ -5,6 +5,7 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import pickle
+import time
 from random import randint
 import os
 
@@ -16,6 +17,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from lxml import etree
 import requests
+
+import sys
+
+PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, PROJECT_DIR)
 
 from db.orm import SwordFishTable, MYSQL_DB
 from exception import OutTryException
@@ -58,6 +64,7 @@ class SwordFish:
         LOGGER.debug('SF: browser start')
 
         browser.get('https://www.jianyu360.com/jylab/supsearch/index.html')
+        LOGGER.debug('SF: get index.html')
 
         if os.path.exists('./cookie.pickle'):
             for _cookie in self._load_cookie('browser_cookie'):  # 注意browser的cookie格式
@@ -69,6 +76,7 @@ class SwordFish:
             browser.find_element_by_xpath('//div[@id="login"]/img')
         except NoSuchElementException:
             qr_url = browser.find_element_by_xpath(QR_CODE_XPATH).get_attribute('src')
+            LOGGER.debug('SF: get qr {}'.format(qr_url))
             try:
                 self._send_email(qr_url)  # TODO WeChat robot
                 LOGGER.debug('SF: waiting to signIn')
@@ -100,6 +108,7 @@ class SwordFish:
                 WebDriverWait(browser, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//div[@class='lucene'][1]/ul/li"))
                 )  # 等待加载内容
+                time.sleep(2)
                 data_elements = browser.find_elements_by_xpath(DATA_ID_XPATH)
                 if self.debug:
                     _filter_articles = [ele.get_attribute('dataid') for ele in data_elements]
@@ -197,8 +206,9 @@ class SwordFish:
         msg['From'] = 'SF_小可爱'
         msg['To'] = ','.join(RECEIVERS)
 
-        smtp_obj = smtplib.SMTP()
-        smtp_obj.connect(MAIL_HOST, 25)
+        # smtp_obj = smtplib.SMTP()
+        # smtp_obj.connect(MAIL_HOST, 25)
+        smtp_obj = smtplib.SMTP_SSL(MAIL_HOST)
         smtp_obj.login(EMAIL, PSW)
         smtp_obj.sendmail(
             EMAIL, RECEIVERS, msg.as_string()
@@ -237,5 +247,7 @@ class SwordFish:
 
 
 if __name__ == '__main__':
-    sf = SwordFish(debug=True)
+    # sf = SwordFish(debug=True)
+    sf = SwordFish()
     sf.run()
+    # print('dddd')

@@ -9,10 +9,11 @@ from playhouse.pool import PooledMySQLDatabase
 TODO: 添加 最后编辑人
 """
 
-MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='nanrou',
-                         host='127.0.0.1', port=3306)
+MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='123456',
+                         host='mysql', port=3306)
 
-MYSQL_DB_POOL = PooledMySQLDatabase('shuiwujia', user='root', password='nanrou',
+MYSQL_DB_POOL = PooledMySQLDatabase('shuiwujia', user='root', password='123456',
+                                    host='mysql',
                                     max_connections=5,
                                     stale_timeout=60 * 5,
                                     timeout=3)
@@ -126,3 +127,4 @@ ALL_TABLES = [CompanyTable, CategoryTable, ArticleTable, UserTable, SwordFishTab
 
 if __name__ == '__main__':
     MYSQL_DB_POOL.connect()
+    MYSQL_DB.connect()

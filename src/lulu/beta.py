@@ -8,6 +8,11 @@ from lxml import etree
 from html2text import HTML2Text
 from selenium import webdriver
 import requests
+import os
+import sys
+
+PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, PROJECT_DIR)
 
 from logger import MyLogger
 from exception import OutTryException
@@ -370,4 +375,5 @@ class Crawler:
 
 
 if __name__ == '__main__':
+    print('bbb')
     pass

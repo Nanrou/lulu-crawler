@@ -2,6 +2,11 @@ from datetime import datetime
 import random
 
 from html2text import HTML2Text
+import os
+import sys
+
+PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, PROJECT_DIR)
 
 from lulu.beta import Crawler, SimpleItem, AjaxItem, HeadlessItem, StaticItem
 from db.orm import CategoryTable, ArticleTable, MYSQL_DB
@@ -56,7 +61,10 @@ def first_crawl():
         insert_list = []
         company, category = url_company_category_mapper[k]
         for single_url in v:
-            _time = handle_time_format(single_url.detail['article_publish_time_rule'])
+            try:
+                _time = handle_time_format(single_url.detail['article_publish_time_rule'])
+            except TypeError:
+                continue
             single_part = dict(
                 url=single_url.url,
                 company_name=company,
@@ -71,6 +79,8 @@ def first_crawl():
                 if single_url.detail['article_content_rule'] else None,
             )
             insert_list.append(single_part)
+        if not(insert_list):
+            continue
         with MYSQL_DB.atomic():
             ArticleTable.insert_many(insert_list).execute()
 
@@ -108,10 +118,12 @@ def daily_crawl():
 if __name__ == '__main__':
     # first_crawl()
     # init_redis()
-    # daily_crawl()
-    import json
+    daily_crawl()
+    # print('test')
 
-    with open('../db/test.json') as rf:
-        jj = json.load(rf)
-        ii = jj['category'][random.randint(0, len(jj['category']) - 1)]
-        print(test_crawl(ii))
+    # import json
+
+    # with open('db/test.json') as rf:
+    #     jj = json.load(rf)
+    #     ii = jj['category'][random.randint(0, len(jj['category']) - 1)]
+    #     print(test_crawl(ii))
