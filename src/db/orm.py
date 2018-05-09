@@ -1,19 +1,24 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+import os
+import sys
+PROJECT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, PROJECT_DIR)
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from peewee import MySQLDatabase, Model, CharField, SmallIntegerField, BooleanField, DateTimeField, \
     TextField
 from playhouse.pool import PooledMySQLDatabase
 
+from unfollow import DB_HOST, DB_USER, DB_PSW, DB_NAME
 """
 TODO: 添加 最后编辑人
 """
 
-MYSQL_DB = MySQLDatabase('shuiwujia', user='root', password='123456',
-                         host='mysql', port=3306)
+MYSQL_DB = MySQLDatabase(DB_NAME, user=DB_USER, password=DB_PSW,
+                         host=DB_HOST, port=3306)
 
-MYSQL_DB_POOL = PooledMySQLDatabase('shuiwujia', user='root', password='123456',
-                                    host='mysql',
+MYSQL_DB_POOL = PooledMySQLDatabase(DB_NAME, user=DB_USER, password=DB_PSW,
+                                    host=DB_HOST,
                                     max_connections=5,
                                     stale_timeout=60 * 5,
                                     timeout=3)
@@ -117,7 +122,7 @@ class SwordFishTable(BaseModel):
     article_id = CharField(max_length=128)
     title = CharField()
     origin_url = CharField(max_length=2048)
-    collected_time = DateTimeField(default=datetime.now())
+    collected_time = DateTimeField(default=datetime.utcnow().astimezone(timezone(timedelta(hours=8))))
 
     class Meta:
         table_name = 'SwordFishTable'

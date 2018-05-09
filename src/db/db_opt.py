@@ -1,4 +1,5 @@
 import json
+
 from orm import MYSQL_DB, ALL_TABLES, CompanyTable, CategoryTable, UserTable
 
 
@@ -44,5 +45,4 @@ def input_json2db(file):
 if __name__ == '__main__':
     create_tables()
     input_json2db('website2.json')
-    # MYSQL_DB.create_tables([UserTable], safe=True)
     pass

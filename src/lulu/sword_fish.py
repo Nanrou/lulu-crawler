@@ -108,6 +108,9 @@ class SwordFish:
                 WebDriverWait(browser, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//div[@class='lucene'][1]/ul/li"))
                 )  # 等待加载内容
+                WebDriverWait(browser, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//div[@class='pagination-inner fr']/a[2]"))
+                )  # 等待加载翻页
                 time.sleep(2)
                 data_elements = browser.find_elements_by_xpath(DATA_ID_XPATH)
                 if self.debug:
